@@ -1,183 +1,207 @@
 /// <reference path="./online-streaming-provider.d.ts" />
 /// <reference path="./core.d.ts" />
 
-// Tipos específicos do Q1N.net
-interface Q1NAnimeResult {
-    title: string;
-    url: string;
-    poster?: string;
-    year?: number;
-    type?: string;
-}
-
-interface Q1NEpisode {
-    number: number;
-    title?: string;
-    url: string;
-    date?: string;
-}
-
+/**
+ * Provider de streaming para Q1N.net
+ * Suporta busca de animes, episódios e extração de vídeo
+ * Compatível com conteúdo legendado e dublado
+ */
 class Provider {
-    // Configurações do provedor
-    private readonly API_BASE = "https://q1n.net";
-    private readonly SUPPORTED_SERVERS = ["chplay", "ruplay"];
-    private readonly DEFAULT_SERVER = "chplay";
-    private readonly MAX_EPISODES_SCAN = 50;
-
-    // Seletores CSS organizados
-    private readonly SELECTORS = {
-        // Seletores para resultados de busca
-        SEARCH_CONTAINERS: [
-            ".items .item",
-            ".result .item", 
-            ".search-result .item",
-            "article",
-            ".post",
-            ".anime-item"
-        ],
-        
-        // Seletores para títulos em resultados de busca
-        SEARCH_TITLES: [".data h3", "h3", "h2", ".title", ".name"],
-        
-        // Seletores para URLs em resultados de busca
-        SEARCH_URLS: [".poster a", "a", ".link"],
-        
-        // Seletores para listas de episódios
-        EPISODES_LISTS: [
-            "ul.episodios2 li", 
-            "ul.episodios li", 
-            ".episodios2 li", 
-            ".episodios li", 
-            "li.episode", 
-            ".episode-list li"
-        ],
-        
-        // Seletores para elementos de episódios
-        EPISODE_LINK: ".episodiotitle a",
-        EPISODE_NUMBER: ".numerando",
-        
-        // Seletores para players
-        PLAYER_ELEMENTS: "li, a, button, span, div",
-        IFRAMES: "iframe"
+    /**
+     * Configurações principais do provedor
+     */
+    private static readonly CONFIG = {
+        API_BASE: "https://q1n.net",
+        SUPPORTED_SERVERS: ["chplay", "ruplay"] as const,
+        DEFAULT_SERVER: "chplay" as const,
+        MAX_EPISODES_SCAN: 50,
+        DEFAULT_QUALITY: "1080p" as const,
+        TIMEOUT: 10000
     };
 
-    // Headers padrão para requisições
-    private readonly DEFAULT_HEADERS = {
-        "Referer": this.API_BASE,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    /**
+     * Seletores CSS organizados por funcionalidade
+     */
+    private static readonly SELECTORS = {
+        SEARCH: {
+            CONTAINERS: [".items .item", ".result .item", ".search-result .item", "article", ".post", ".anime-item"],
+            TITLES: [".data h3", "h3", "h2", ".title", ".name"],
+            URLS: [".poster a", "a", ".link"]
+        },
+        EPISODES: {
+            LISTS: ["ul.episodios2 li", "ul.episodios li", ".episodios2 li", ".episodios li", "li.episode", ".episode-list li"],
+            LINK: ".episodiotitle a",
+            NUMBER: ".numerando"
+        },
+        PLAYER: {
+            ELEMENTS: "li, a, button, span, div",
+            IFRAMES: "iframe"
+        }
     };
 
+    /**
+     * Headers padrão para requisições HTTP
+     */
+    private static readonly DEFAULT_HEADERS = {
+        "Referer": Provider.CONFIG.API_BASE,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    };
+
+    /**
+     * Padrões regex para extração de dados
+     */
+    private static readonly REGEX_PATTERNS = {
+        IFRAME_AVISO: /<iframe[^>]*src=["']([^"']*\/aviso\/[^"']*)["'][^>]*>/gi,
+        IFRAME_DIRECT: /<iframe[^>]*src=["']([^"']*(?:blogger\.com|youtube\.com|youtu\.be)[^"']*)["'][^>]*>/gi,
+        URL_PARAM: /url=([^&]+)/,
+        EPISODE_NUMBER: /episodio-(\d+)/,
+        ANIME_ID: /animes\/([^\/]+)/,
+        EPISODE_ID: /episodio\/([^\/]+)/
+    };
+
+    /**
+     * Retorna as configurações suportadas pelo provedor
+     */
     getSettings(): Settings {
         return {
-            episodeServers: this.SUPPORTED_SERVERS,
+            episodeServers: [...Provider.CONFIG.SUPPORTED_SERVERS],
             supportsDub: true,
         };
     }
 
+    /**
+     * Realiza busca de animes no Q1N.net
+     */
     async search(opts: SearchOptions): Promise<SearchResult[]> {
         try {
-            const searchUrl = this.buildSearchUrl(opts.query, opts.dub);
-            const html = await this.fetchHtml(searchUrl);
+            const searchUrl = UrlBuilder.buildSearchUrl(opts.query, opts.dub);
+            const html = await HttpClient.fetchHtml(searchUrl);
             
             if (!html) return [];
             
-            return this.parseSearchResults(html);
+            return SearchParser.parseResults(html);
         } catch (error) {
             console.error("Erro na busca:", error);
             return [];
         }
     }
 
+    /**
+     * Busca episódios de um anime específico
+     */
     async findEpisodes(id: string): Promise<EpisodeDetails[]> {
         try {
-            // Validar ID
-            if (!this.isValidAnimeId(id)) {
+            if (!Validator.isValidAnimeId(id)) {
                 return [];
             }
 
-            const animeUrl = this.buildAnimeUrl(id);
-            const html = await this.fetchHtml(animeUrl);
+            const animeUrl = UrlBuilder.buildAnimeUrl(id);
+            const html = await HttpClient.fetchHtml(animeUrl);
             
             if (!html) {
-                return this.findEpisodesFromEpisodePages(id);
+                return EpisodeFinder.findFromEpisodePages(id);
             }
 
-            const episodes = this.parseEpisodesFromAnimePage(html);
+            const episodes = EpisodeParser.parseFromAnimePage(html);
             
             if (episodes.length === 0) {
-                return this.findEpisodesFromEpisodePages(id);
+                return EpisodeFinder.findFromEpisodePages(id);
             }
 
-            return this.sortEpisodes(episodes);
+            return Utils.sortEpisodes(episodes);
         } catch (error) {
             console.error("Erro ao buscar episódios:", error);
             return [];
         }
     }
 
+    /**
+     * Busca servidor de vídeo para um episódio específico
+     */
     async findEpisodeServer(episode: EpisodeDetails, server: string, mediaId?: string): Promise<EpisodeServer> {
         try {
-            this.validateEpisodeData(episode);
+            Validator.validateEpisodeData(episode);
             
-            const html = await this.fetchHtml(episode.url);
+            const html = await HttpClient.fetchHtml(episode.url);
             if (!html) {
                 throw new Error("Não foi possível carregar a página do episódio");
             }
 
-            const players = this.extractPlayersFromPage(html, episode);
-            const selectedServer = server === "default" || !server ? this.DEFAULT_SERVER : server;
-            const playerUrl = this.selectBestPlayer(players, selectedServer);
+            const players = await PlayerExtractor.extractFromPage(html, episode);
+            const selectedServer = server === "default" || !server ? Provider.CONFIG.DEFAULT_SERVER : server;
+            const playerUrl = PlayerSelector.selectBest(players, selectedServer);
 
-            return this.buildEpisodeServerResponse(selectedServer, playerUrl);
+            return ResponseBuilder.buildEpisodeServer(selectedServer, playerUrl);
         } catch (error) {
             console.error("Erro ao buscar servidor do episódio:", error);
             throw error;
         }
     }
 
-    // Métodos privados para organização
+}
 
-    private buildSearchUrl(query: string, isDub: boolean): string {
+/**
+ * Classe responsável por construir URLs
+ */
+class UrlBuilder {
+    static buildSearchUrl(query: string, isDub: boolean): string {
         const searchQuery = isDub ? `${query} dublado` : query;
-        return `${this.API_BASE}/?s=${encodeURIComponent(searchQuery)}`;
+        return `${Provider.CONFIG.API_BASE}/?s=${encodeURIComponent(searchQuery)}`;
     }
 
-    private buildAnimeUrl(animeSlug: string): string {
-        return `${this.API_BASE}/animes/${animeSlug}/`;
+    static buildAnimeUrl(animeSlug: string): string {
+        return `${Provider.CONFIG.API_BASE}/animes/${animeSlug}/`;
     }
 
-    private buildEpisodeUrl(animeSlug: string, episodeNumber: number): string {
-        return `${this.API_BASE}/episodio/${animeSlug}-episodio-${episodeNumber}/`;
+    static buildEpisodeUrl(animeSlug: string, episodeNumber: number): string {
+        return `${Provider.CONFIG.API_BASE}/episodio/${animeSlug}-episodio-${episodeNumber}/`;
     }
+}
 
-    private async fetchHtml(url: string): Promise<string | null> {
+/**
+ * Classe responsável por requisições HTTP
+ */
+class HttpClient {
+    static async fetchHtml(url: string): Promise<string | null> {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { 
+                headers: Provider.DEFAULT_HEADERS,
+                timeout: Provider.CONFIG.TIMEOUT
+            });
             if (!response.ok) return null;
             return await response.text();
         } catch {
             return null;
         }
     }
+}
 
-    private isValidAnimeId(id: string): boolean {
-        // ID numérico sozinho não é válido para este provedor
+/**
+ * Classe responsável por validações
+ */
+class Validator {
+    static isValidAnimeId(id: string): boolean {
         return !/^\d+$/.test(id);
     }
 
-    private validateEpisodeData(episode: EpisodeDetails): void {
+    static validateEpisodeData(episode: EpisodeDetails): void {
         if (!episode?.id || !episode?.url || !episode.url.trim()) {
             throw new Error("Dados do episódio inválidos ou incompletos");
         }
     }
+}
 
-    private parseSearchResults(html: string): SearchResult[] {
+/**
+ * Classe responsável por parsing de resultados de busca
+ */
+class SearchParser {
+    static parseResults(html: string): SearchResult[] {
         const $ = LoadDoc(html);
         const results: SearchResult[] = [];
 
-        for (const containerSelector of this.SELECTORS.SEARCH_CONTAINERS) {
+        for (const containerSelector of Provider.SELECTORS.SEARCH.CONTAINERS) {
             $(containerSelector).each((_, element) => {
-                const result = this.parseSearchResultElement(element);
+                const result = SearchParser.parseResultElement(element);
                 if (result) {
                     results.push(result);
                 }
@@ -189,63 +213,36 @@ class Provider {
         return results;
     }
 
-    private parseSearchResultElement(element: any): SearchResult | null {
-        const title = this.extractTextFromSelectors(element, this.SELECTORS.SEARCH_TITLES);
-        const url = this.extractUrlFromSelectors(element, this.SELECTORS.SEARCH_URLS);
+    private static parseResultElement(element: any): SearchResult | null {
+        const title = ElementExtractor.extractText(element, Provider.SELECTORS.SEARCH.TITLES);
+        const url = ElementExtractor.extractUrl(element, Provider.SELECTORS.SEARCH.URLS);
 
         if (!title || !url) return null;
 
         return {
-            id: this.extractIdFromUrl(url),
+            id: Utils.extractIdFromUrl(url),
             title: title,
             url: url,
-            subOrDub: this.detectSubOrDub(title),
+            subOrDub: Utils.detectSubOrDub(title),
         };
     }
+}
 
-    private extractTextFromSelectors(element: any, selectors: string[]): string {
-        for (const selector of selectors) {
-            const textElement = element.find(selector).first();
-            const text = textElement.text().trim();
-            if (text) return text;
-        }
-        return "";
-    }
-
-    private extractUrlFromSelectors(element: any, selectors: string[]): string {
-        for (const selector of selectors) {
-            const linkElement = element.find(selector).first();
-            const href = linkElement.attr("href");
-            if (href && href.includes("/animes/")) {
-                return href;
-            }
-        }
-
-        // Tentar no próprio elemento
-        const elementHref = element.attr("href");
-        if (elementHref && elementHref.includes("/animes/")) {
-            return elementHref;
-        }
-
-        return "";
-    }
-
-    private detectSubOrDub(title: string): SubOrDub {
-        const lowerTitle = title.toLowerCase();
-        return (lowerTitle.includes("dublado") || lowerTitle.includes("dub")) ? "dub" : "sub";
-    }
-
-    private parseEpisodesFromAnimePage(html: string): EpisodeDetails[] {
+/**
+ * Classe responsável por parsing de episódios
+ */
+class EpisodeParser {
+    static parseFromAnimePage(html: string): EpisodeDetails[] {
         const $ = LoadDoc(html);
         const episodes: EpisodeDetails[] = [];
 
-        for (const selector of this.SELECTORS.EPISODES_LISTS) {
+        for (const selector of Provider.SELECTORS.EPISODES.LISTS) {
             const elements = $(selector);
-            const elementCount = this.countElements(elements);
+            const elementCount = Utils.countElements(elements);
 
             if (elementCount > 0) {
                 elements.each((_, element) => {
-                    const episode = this.parseEpisodeElement(element);
+                    const episode = EpisodeParser.parseEpisodeElement(element);
                     if (episode) {
                         episodes.push(episode);
                     }
@@ -257,53 +254,49 @@ class Provider {
         return episodes;
     }
 
-    private parseEpisodeElement(element: any): EpisodeDetails | null {
-        const epLink = element.find(this.SELECTORS.EPISODE_LINK).first();
+    private static parseEpisodeElement(element: any): EpisodeDetails | null {
+        const epLink = element.find(Provider.SELECTORS.EPISODES.LINK).first();
         const epUrl = epLink.attr("href");
 
         if (!epUrl) return null;
 
-        const epNumber = this.extractEpisodeNumber(epUrl, element);
+        const epNumber = EpisodeParser.extractEpisodeNumber(epUrl, element);
         const epTitle = epLink.text().trim() || `Episódio ${epNumber}`;
 
         return {
-            id: this.extractEpisodeIdFromUrl(epUrl),
+            id: Utils.extractEpisodeIdFromUrl(epUrl),
             number: epNumber,
             url: epUrl,
             title: epTitle,
         };
     }
 
-    private extractEpisodeNumber(url: string, element: any): number {
-        // Tentar extrair da URL primeiro
-        const urlMatch = url.match(/episodio-(\d+)/);
+    private static extractEpisodeNumber(url: string, element: any): number {
+        const urlMatch = url.match(Provider.REGEX_PATTERNS.EPISODE_NUMBER);
         if (urlMatch) {
             return parseInt(urlMatch[1]);
         }
 
-        // Tentar extrair do elemento .numerando
-        const numerandoText = element.find(this.SELECTORS.EPISODE_NUMBER).text().trim();
+        const numerandoText = element.find(Provider.SELECTORS.EPISODES.NUMBER).text().trim();
         const numerandoNumber = parseInt(numerandoText);
         if (numerandoNumber) {
             return numerandoNumber;
         }
 
-        // Fallback: retornar 1
         return 1;
     }
+}
 
-    private countElements(elements: any): number {
-        let count = 0;
-        elements.each(() => count++);
-        return count;
-    }
-
-    private async findEpisodesFromEpisodePages(animeSlug: string): Promise<EpisodeDetails[]> {
+/**
+ * Classe responsável por encontrar episódios
+ */
+class EpisodeFinder {
+    static async findFromEpisodePages(animeSlug: string): Promise<EpisodeDetails[]> {
         const episodes: EpisodeDetails[] = [];
 
-        for (let i = 1; i <= this.MAX_EPISODES_SCAN; i++) {
+        for (let i = 1; i <= Provider.CONFIG.MAX_EPISODES_SCAN; i++) {
             try {
-                const episodeUrl = this.buildEpisodeUrl(animeSlug, i);
+                const episodeUrl = UrlBuilder.buildEpisodeUrl(animeSlug, i);
                 const response = await fetch(episodeUrl, { method: 'HEAD' });
 
                 if (response.ok) {
@@ -323,132 +316,141 @@ class Provider {
 
         return episodes;
     }
+}
 
-    private sortEpisodes(episodes: EpisodeDetails[]): EpisodeDetails[] {
-        return episodes.sort((a, b) => a.number - b.number);
+/**
+ * Classe responsável por extração de elementos
+ */
+class ElementExtractor {
+    static extractText(element: any, selectors: string[]): string {
+        for (const selector of selectors) {
+            const textElement = element.find(selector).first();
+            const text = textElement.text().trim();
+            if (text) return text;
+        }
+        return "";
     }
 
-    private extractPlayersFromPage(html: string, episode: EpisodeDetails): Map<string, string> {
-        const $ = LoadDoc(html);
-        const players = new Map<string, string>();
-
-        // Buscar iframes ativos
-        this.extractPlayersFromIframes($, players);
-
-        // Buscar elementos de seleção de players
-        this.extractPlayersFromElements($, players);
-
-        // Fallback: criar URLs baseadas no padrão
-        if (players.size === 0) {
-            this.createFallbackPlayers(players, episode.id);
+    static extractUrl(element: any, selectors: string[]): string {
+        for (const selector of selectors) {
+            const linkElement = element.find(selector).first();
+            const href = linkElement.attr("href");
+            if (href && href.includes("/animes/")) {
+                return href;
+            }
         }
 
+        const elementHref = element.attr("href");
+        if (elementHref && elementHref.includes("/animes/")) {
+            return elementHref;
+        }
+
+        return "";
+    }
+}
+
+/**
+ * Classe responsável por extração de players
+ */
+class PlayerExtractor {
+    static async extractFromPage(html: string, episode: EpisodeDetails): Promise<Map<string, string>> {
+        const players = new Map<string, string>();
+        
+        try {
+            await PlayerExtractor.extractFromHtml(html, players);
+            
+            if (players.size === 0) {
+                PlayerExtractor.createFallbackPlayers(players, episode.id);
+            }
+        } catch (error) {
+            console.error("Erro na extração:", error);
+            PlayerExtractor.createFallbackPlayers(players, episode.id);
+        }
+        
         return players;
     }
-
-    private extractPlayersFromIframes($: any, players: Map<string, string>): void {
-        const foundUrls = new Set<string>(); // Para evitar duplicatas
-        let playerIndex = 1;
+    
+    private static async extractFromHtml(html: string, players: Map<string, string>): Promise<void> {
+        let match;
         
-        $(this.SELECTORS.IFRAMES).each((_, iframe: any) => {
-            const src = iframe.attr("src");
+        while ((match = Provider.REGEX_PATTERNS.IFRAME_AVISO.exec(html)) !== null) {
+            const iframeSrc = match[1];
             
-            if (src && src.trim() && !src.includes("about:blank")) {
-                // Verificar se é uma URL de aviso com parâmetro url
-                if (src.includes("/aviso/") && src.includes("url=")) {
-                    const urlMatch = src.match(/url=([^&]+)/);
-                    if (urlMatch) {
-                        const realUrl = decodeURIComponent(urlMatch[1]);
-                        
-                        // Evitar URLs duplicadas
-                        if (foundUrls.has(realUrl)) {
-                            return;
-                        }
-                        foundUrls.add(realUrl);
-                        
-                        // Mapear baseado nas características da URL
-                        if (realUrl.includes("disneycdn.net")) {
-                            players.set("chplay", realUrl);
-                        } else if (realUrl.includes("csst.online")) {
-                            players.set("ruplay", realUrl);
-                        } else if (realUrl.includes("short.icu")) {
-                            // Terceiro player alternativo
-                            players.set(playerIndex <= 2 ? "ruplay" : "chplay", realUrl);
-                        } else {
-                            // Mapear por ordem para players desconhecidos
-                            const serverName = playerIndex === 1 ? "chplay" : "ruplay";
-                            if (!players.has(serverName)) {
-                                players.set(serverName, realUrl);
-                            }
-                        }
-                        playerIndex++;
-                    }
-                } else {
-                    // Evitar URLs duplicadas também para iframes diretos
-                    if (foundUrls.has(src)) {
-                        return;
-                    }
-                    foundUrls.add(src);
-                    
-                    // Mapear outros tipos de iframe por características
-                    if (src.includes("blogger.com") || src.includes("blogspot.com")) {
-                        // Google Blogger player
-                        const serverName = !players.has("chplay") ? "chplay" : "ruplay";
-                        players.set(serverName, src);
-                    } else if (src.includes("youtube.com") || src.includes("youtu.be")) {
-                        // YouTube player
-                        const serverName = !players.has("chplay") ? "chplay" : "ruplay";
-                        players.set(serverName, src);
-                    } else {
-                        // Verificar se contém nome de servidor conhecido
-                        let mapped = false;
-                        for (const server of this.SUPPORTED_SERVERS) {
-                            if (src.includes(server)) {
-                                players.set(server, src);
-                                mapped = true;
-                                break;
-                            }
-                        }
-                        
-                        // Se não mapeou, usar slot disponível
-                        if (!mapped) {
-                            const serverName = !players.has("chplay") ? "chplay" : 
-                                             !players.has("ruplay") ? "ruplay" : 
-                                             `player${playerIndex}`;
-                            players.set(serverName, src);
-                            playerIndex++;
-                        }
-                    }
+            try {
+                // Processar página de aviso para obter URL real
+                const realUrl = await PlayerExtractor.processAvisoPage(iframeSrc);
+                if (realUrl) {
+                    PlayerExtractor.mapPlayerByUrl(players, realUrl);
                 }
+            } catch (error) {
+                console.error("Erro ao processar página de aviso:", error);
+                // Fallback: usar URL do iframe completa
+                PlayerExtractor.mapPlayerByUrl(players, iframeSrc);
             }
-        });
-    }
-
-    private extractPlayersFromElements($: any, players: Map<string, string>): void {
-        $(this.SELECTORS.PLAYER_ELEMENTS).each((_, element: any) => {
-            const text = element.text().toLowerCase().trim();
-            
-            if (this.SUPPORTED_SERVERS.includes(text)) {
-                const parentHref = element.parent().attr("href");
-                const elementHref = element.attr("href");
-                
-                if (parentHref || elementHref) {
-                    players.set(text, parentHref || elementHref);
-                }
-            }
-        });
-    }
-
-    private createFallbackPlayers(players: Map<string, string>, episodeId: string): void {
-        for (const server of this.SUPPORTED_SERVERS) {
-            players.set(server, `${this.API_BASE}/player/${server}/${episodeId}`);
+        }
+        
+        while ((match = Provider.REGEX_PATTERNS.IFRAME_DIRECT.exec(html)) !== null) {
+            const iframeSrc = match[1];
+            PlayerExtractor.mapPlayerByUrl(players, iframeSrc);
         }
     }
 
-    private selectBestPlayer(players: Map<string, string>, preferredServer: string): string {
+    /**
+     * Processa a página de aviso para obter a URL real do player
+     */
+    private static async processAvisoPage(avisoUrl: string): Promise<string | null> {
+        try {
+            // Buscar a página de aviso
+            const avisoHtml = await HttpClient.fetchHtml(avisoUrl);
+            if (!avisoHtml) return null;
+
+            // Extrair URL do parâmetro original
+            const urlMatch = avisoUrl.match(Provider.REGEX_PATTERNS.URL_PARAM);
+            if (!urlMatch) return null;
+
+            const originalUrl = decodeURIComponent(urlMatch[1]);
+            
+            // Verificar se a página tem o botão de confirmação
+            if (avisoHtml.includes("redirecionarParaVideo") || avisoHtml.includes("Deseja continuar")) {
+                // Simular clique no botão "Sim" retornando a URL original
+                // que agora deve funcionar após "passar" pela página de aviso
+                return originalUrl;
+            }
+
+            return originalUrl;
+        } catch (error) {
+            console.error("Erro ao processar página de aviso:", error);
+            return null;
+        }
+    }
+
+    private static mapPlayerByUrl(players: Map<string, string>, url: string): void {
+        if (url.includes("disneycdn.net") && !players.has("chplay")) {
+            players.set("chplay", url);
+        } else if (url.includes("csst.online") && !players.has("ruplay")) {
+            players.set("ruplay", url);
+        } else if (!players.has("chplay")) {
+            players.set("chplay", url);
+        } else if (!players.has("ruplay")) {
+            players.set("ruplay", url);
+        }
+    }
+
+    private static createFallbackPlayers(players: Map<string, string>, episodeId: string): void {
+        for (const server of Provider.CONFIG.SUPPORTED_SERVERS) {
+            players.set(server, `${Provider.CONFIG.API_BASE}/player/${server}/${episodeId}`);
+        }
+    }
+}
+
+/**
+ * Classe responsável por seleção de players
+ */
+class PlayerSelector {
+    static selectBest(players: Map<string, string>, preferredServer: string): string {
         const playerUrl = players.get(preferredServer) || 
-                         players.get(this.DEFAULT_SERVER) || 
-                         players.get(this.SUPPORTED_SERVERS[1]) || 
+                         players.get(Provider.CONFIG.DEFAULT_SERVER) || 
+                         players.get(Provider.CONFIG.SUPPORTED_SERVERS[1]) || 
                          players.values().next().value;
 
         if (!playerUrl || playerUrl.includes("about:blank")) {
@@ -457,27 +459,53 @@ class Provider {
 
         return playerUrl;
     }
+}
 
-    private buildEpisodeServerResponse(server: string, playerUrl: string): EpisodeServer {
+/**
+ * Classe responsável por construir respostas
+ */
+class ResponseBuilder {
+    static buildEpisodeServer(server: string, playerUrl: string): EpisodeServer {
         return {
             server: server,
-            headers: this.DEFAULT_HEADERS,
+            headers: Provider.DEFAULT_HEADERS,
             videoSources: [{
                 url: playerUrl,
                 type: "m3u8",
-                quality: "1080p",
+                quality: Provider.CONFIG.DEFAULT_QUALITY,
                 subtitles: [],
             }],
         };
     }
+}
 
-    private extractIdFromUrl(url: string): string {
-        const match = url.match(/animes\/([^\/]+)/) || url.match(/\/([^\/]+)\/?$/);
+/**
+ * Classe utilitária
+ */
+class Utils {
+    static sortEpisodes(episodes: EpisodeDetails[]): EpisodeDetails[] {
+        return episodes.sort((a, b) => a.number - b.number);
+    }
+
+    static countElements(elements: any): number {
+        let count = 0;
+        elements.each(() => count++);
+        return count;
+    }
+
+    static detectSubOrDub(title: string): SubOrDub {
+        const lowerTitle = title.toLowerCase();
+        return (lowerTitle.includes("dublado") || lowerTitle.includes("dub")) ? "dub" : "sub";
+    }
+
+    static extractIdFromUrl(url: string): string {
+        const match = url.match(Provider.REGEX_PATTERNS.ANIME_ID) || url.match(/\/([^\/]+)\/?$/);
         return match ? match[1] : url;
     }
 
-    private extractEpisodeIdFromUrl(url: string): string {
-        const match = url.match(/episodio\/([^\/]+)/) || url.match(/\/([^\/]+)\/?$/);
+    static extractEpisodeIdFromUrl(url: string): string {
+        const match = url.match(Provider.REGEX_PATTERNS.EPISODE_ID) || url.match(/\/([^\/]+)\/?$/);
         return match ? match[1] : url;
     }
+
 }
