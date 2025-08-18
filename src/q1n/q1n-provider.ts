@@ -347,17 +347,79 @@ class Provider {
     }
 
     private extractPlayersFromIframes($: any, players: Map<string, string>): void {
+        const foundUrls = new Set<string>(); // Para evitar duplicatas
+        let playerIndex = 1;
+        
         $(this.SELECTORS.IFRAMES).each((_, iframe: any) => {
             const src = iframe.attr("src");
             
             if (src && src.trim() && !src.includes("about:blank")) {
-                for (const server of this.SUPPORTED_SERVERS) {
-                    if (src.includes(server)) {
-                        players.set(server, src);
+                // Verificar se é uma URL de aviso com parâmetro url
+                if (src.includes("/aviso/") && src.includes("url=")) {
+                    const urlMatch = src.match(/url=([^&]+)/);
+                    if (urlMatch) {
+                        const realUrl = decodeURIComponent(urlMatch[1]);
+                        
+                        // Evitar URLs duplicadas
+                        if (foundUrls.has(realUrl)) {
+                            return;
+                        }
+                        foundUrls.add(realUrl);
+                        
+                        // Mapear baseado nas características da URL
+                        if (realUrl.includes("disneycdn.net")) {
+                            players.set("chplay", realUrl);
+                        } else if (realUrl.includes("csst.online")) {
+                            players.set("ruplay", realUrl);
+                        } else if (realUrl.includes("short.icu")) {
+                            // Terceiro player alternativo
+                            players.set(playerIndex <= 2 ? "ruplay" : "chplay", realUrl);
+                        } else {
+                            // Mapear por ordem para players desconhecidos
+                            const serverName = playerIndex === 1 ? "chplay" : "ruplay";
+                            if (!players.has(serverName)) {
+                                players.set(serverName, realUrl);
+                            }
+                        }
+                        playerIndex++;
+                    }
+                } else {
+                    // Evitar URLs duplicadas também para iframes diretos
+                    if (foundUrls.has(src)) {
                         return;
                     }
+                    foundUrls.add(src);
+                    
+                    // Mapear outros tipos de iframe por características
+                    if (src.includes("blogger.com") || src.includes("blogspot.com")) {
+                        // Google Blogger player
+                        const serverName = !players.has("chplay") ? "chplay" : "ruplay";
+                        players.set(serverName, src);
+                    } else if (src.includes("youtube.com") || src.includes("youtu.be")) {
+                        // YouTube player
+                        const serverName = !players.has("chplay") ? "chplay" : "ruplay";
+                        players.set(serverName, src);
+                    } else {
+                        // Verificar se contém nome de servidor conhecido
+                        let mapped = false;
+                        for (const server of this.SUPPORTED_SERVERS) {
+                            if (src.includes(server)) {
+                                players.set(server, src);
+                                mapped = true;
+                                break;
+                            }
+                        }
+                        
+                        // Se não mapeou, usar slot disponível
+                        if (!mapped) {
+                            const serverName = !players.has("chplay") ? "chplay" : 
+                                             !players.has("ruplay") ? "ruplay" : 
+                                             `player${playerIndex}`;
+                            players.set(serverName, src);
+                            playerIndex++;
+                        }
+                    }
                 }
-                players.set("default", src);
             }
         });
     }
@@ -397,16 +459,12 @@ class Provider {
     }
 
     private buildEpisodeServerResponse(server: string, playerUrl: string): EpisodeServer {
-        // NOTA: Q1N.net usa players externos (chplay/ruplay) que carregam via JavaScript.
-        // Esta URL pode não funcionar diretamente - é necessário investigar mais
-        // como extrair as URLs reais dos vídeos destes players.
-        
         return {
             server: server,
             headers: this.DEFAULT_HEADERS,
             videoSources: [{
                 url: playerUrl,
-                type: "mp4",
+                type: "m3u8",
                 quality: "1080p",
                 subtitles: [],
             }],
