@@ -129,7 +129,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🎉 **All tests passed!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Provider is ready for use:** \`https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Provider is ready for use:** \`https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/src/darkmahou/darkmahou-provider.json\`" >> $GITHUB_STEP_SUMMARY
 
   notification:
     name: Test Results Notification
