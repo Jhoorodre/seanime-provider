@@ -397,6 +397,10 @@ class Provider {
     }
 
     private buildEpisodeServerResponse(server: string, playerUrl: string): EpisodeServer {
+        // NOTA: Q1N.net usa players externos (chplay/ruplay) que carregam via JavaScript.
+        // Esta URL pode não funcionar diretamente - é necessário investigar mais
+        // como extrair as URLs reais dos vídeos destes players.
+        
         return {
             server: server,
             headers: this.DEFAULT_HEADERS,
