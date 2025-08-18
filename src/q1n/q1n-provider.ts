@@ -403,7 +403,7 @@ class Provider {
             videoSources: [{
                 url: playerUrl,
                 type: "mp4",
-                quality: "720p",
+                quality: "1080p",
                 subtitles: [],
             }],
         };
