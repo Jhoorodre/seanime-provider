@@ -30,28 +30,37 @@ All methods are required by the Seanime anime torrent provider interface:
 
 ## Development Commands
 
-The repository uses GitHub Actions for CI/CD. Manual testing can be done by:
+The repository uses GitHub Actions for CI/CD. This is a **pure provider repository** with no build system, package management, or compilation required.
 
-### Testing the Provider
+### Manual Provider Testing
 ```bash
 # Test site connectivity
 curl -s "https://darkmahou.org"
 
-# Test search functionality  
+# Test search functionality with Portuguese terms
 curl -s "https://darkmahou.org/?s=naruto"
+
+# Test with anime that should exist
+curl -s "https://darkmahou.org/?s=one+piece"
 ```
 
-### Validating Manifest
+### Validating Changes
 ```bash
-# Validate JSON syntax
+# Validate JSON manifest syntax
 jq empty src/darkmahou/darkmahou-provider.json
 
-# Check manifest accessibility
-curl -s "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/darkmahou/darkmahou-provider.json"
+# Extract key manifest fields for verification
+jq '.version, .manifestURI, .payloadURI' src/darkmahou/darkmahou-provider.json
+
+# Check deployed manifest accessibility
+curl -s "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/src/darkmahou/darkmahou-provider.json"
 ```
 
-### Version Management
-Version updates should be made in `src/darkmahou/darkmahou-provider.json`. The GitHub Actions workflows automatically validate and deploy changes when pushed to master.
+### GitHub Actions Workflows
+All validation and deployment happens automatically:
+- **Push to master**: Triggers `deploy.yml` for validation and deployment
+- **Manual testing**: Use GitHub Actions tab to run `test-provider.yml`  
+- **Version bumping**: Use `workflow_dispatch` on `version-bump.yml` (patch/minor/major)
 
 ## Important Implementation Details
 
@@ -91,10 +100,27 @@ Prioritized extraction patterns:
 - Tests site connectivity before deployment
 
 ### `version-bump.yml`
-- Automated version management workflow
+- Manual workflow dispatch for version bumping (patch/minor/major)
+- Automatically creates Git tags and GitHub releases
+- Updates `version` field in manifest JSON
 
 ## Provider Usage
 The deployed provider can be added to Seanime using:
 ```
-https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/darkmahou/darkmahou-provider.json
+https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/src/darkmahou/darkmahou-provider.json
 ```
+
+## Working with Provider Logic
+
+### Critical Areas for Modifications
+- **Search term conversion**: `convertToPorguguese()` method handles English→Portuguese translation
+- **HTML parsing**: Dual approach with LoadDoc primary + regex fallback in `parseTorrentsFromHTML()`
+- **Episode detection**: Complex logic in `extractEpisodeNumber()` with multiple pattern matching
+- **Batch identification**: `isBatchTorrent()` uses sophisticated range and keyword detection
+
+### Testing Provider Changes
+Since this is a remote-deployed provider, test changes by:
+1. Modify provider code locally
+2. Push to trigger `deploy.yml` validation
+3. Test deployed version at manifest URL
+4. Monitor GitHub Actions for any validation failures
