@@ -8,7 +8,7 @@
     "type": "anime-torrent-provider",
     "language": "typescript",
     "lang": "pt-BR",
-    "icon": "https://raw.githubusercontent.com/Bas1874/Tokyotosho-Torrent-Provider-Seanime/main/src/icons/icon.png",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/icon/icon.png",
     "payloadURI": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/refs/heads/master/src/darkmahou/darkmahou-provider.ts",
     "isDevelopment": false
 }
