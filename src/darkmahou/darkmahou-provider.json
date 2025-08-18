@@ -9,6 +9,6 @@
     "language": "typescript",
     "lang": "pt-BR",
     "icon": "https://raw.githubusercontent.com/Bas1874/Tokyotosho-Torrent-Provider-Seanime/main/src/icons/icon.png",
-    "payloadURI": "https://raw.githubusercontent.com/Bas1874/Tokyotosho-Torrent-Provider-Seanime/main/src/tokyotosho/Tokyo-Toshokan.ts",
+    "payloadURI": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/refs/heads/master/src/darkmahou/darkmahou-provider.ts",
     "isDevelopment": false
 }
