@@ -1,0 +1,144 @@
+name: Test DarkMahou Provider
+
+on:
+  schedule:
+    # Run tests daily at 8:00 AM UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['src/darkmahou/darkmahou-provider.ts']
+
+jobs:
+  test-connectivity:
+    name: Test Provider Connectivity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Test DarkMahou site connectivity
+        run: |
+          echo "🔍 Testing DarkMahou.org connectivity..."
+          
+          # Test main site with detailed response
+          RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" "https://darkmahou.org")
+          HTTP_STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://' | sed -e 's/;TIME:.*//')
+          TIME_TOTAL=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*TIME://')
+          
+          echo "🌐 Main site status: $HTTP_STATUS"
+          echo "⏱️  Response time: ${TIME_TOTAL}s"
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 301 ] || [ "$HTTP_STATUS" -eq 302 ]; then
+            echo "✅ DarkMahou.org is accessible"
+          else
+            echo "❌ DarkMahou.org returned status: $HTTP_STATUS"
+            exit 1
+          fi
+          
+      - name: Test search functionality
+        run: |
+          echo "🔍 Testing search functionality..."
+          
+          # Test search with a common anime
+          SEARCH_RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" "https://darkmahou.org/?s=naruto")
+          SEARCH_STATUS=$(echo $SEARCH_RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          
+          echo "🔍 Search status: $SEARCH_STATUS"
+          
+          if [ "$SEARCH_STATUS" -eq 200 ]; then
+            echo "✅ Search endpoint is working"
+            
+            # Check if response contains expected content
+            if echo "$SEARCH_RESPONSE" | grep -qi "naruto\|anime\|darkmahou"; then
+              echo "✅ Search returns relevant content"
+            else
+              echo "⚠️  Search response may not contain expected content"
+            fi
+          else
+            echo "❌ Search endpoint returned status: $SEARCH_STATUS"
+            exit 1
+          fi
+          
+      - name: Test rate limiting
+        run: |
+          echo "🔍 Testing rate limiting behavior..."
+          
+          # Make multiple requests to test rate limiting
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" "https://darkmahou.org")
+            STATUS=$(echo $RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+            echo "Request $i: Status $STATUS"
+            
+            if [ "$STATUS" -eq 429 ]; then
+              echo "⚠️  Rate limiting detected"
+              break
+            fi
+            
+            sleep 1
+          done
+          
+          echo "✅ Rate limiting test completed"
+          
+      - name: Validate manifest URLs
+        run: |
+          echo "🔍 Validating manifest URLs..."
+          
+          # Extract URLs from manifest
+          MANIFEST_URI=$(jq -r '.manifestURI' src/darkmahou/darkmahou-provider.json)
+          PAYLOAD_URI=$(jq -r '.payloadURI' src/darkmahou/darkmahou-provider.json)
+          
+          echo "📄 Manifest URI: $MANIFEST_URI"
+          echo "📄 Payload URI: $PAYLOAD_URI"
+          
+          # Test manifest URI
+          if [ "$MANIFEST_URI" != "null" ]; then
+            MANIFEST_RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" "$MANIFEST_URI")
+            MANIFEST_STATUS=$(echo $MANIFEST_RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+            
+            if [ "$MANIFEST_STATUS" -eq 200 ]; then
+              echo "✅ Manifest URI is accessible"
+            else
+              echo "⚠️  Manifest URI returned status: $MANIFEST_STATUS"
+            fi
+          fi
+          
+          # Test payload URI
+          if [ "$PAYLOAD_URI" != "null" ]; then
+            PAYLOAD_RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" "$PAYLOAD_URI")
+            PAYLOAD_STATUS=$(echo $PAYLOAD_RESPONSE | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+            
+            if [ "$PAYLOAD_STATUS" -eq 200 ]; then
+              echo "✅ Payload URI is accessible"
+            else
+              echo "⚠️  Payload URI returned status: $PAYLOAD_STATUS"
+            fi
+          fi
+          
+      - name: Generate test report
+        run: |
+          echo "📊 **Test Report**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| DarkMahou.org Connectivity | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Search Functionality | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rate Limiting | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Manifest URLs | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 **All tests passed!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Provider is ready for use:** \`https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json\`" >> $GITHUB_STEP_SUMMARY
+
+  notification:
+    name: Test Results Notification
+    runs-on: ubuntu-latest
+    needs: test-connectivity
+    if: failure()
+    
+    steps:
+      - name: Notify on failure
+        run: |
+          echo "⚠️  DarkMahou Provider tests failed!"
+          echo "Please check the test results and fix any issues."

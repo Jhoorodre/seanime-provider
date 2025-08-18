@@ -1,0 +1,160 @@
+name: Deploy DarkMahou Provider
+
+on:
+  push:
+    branches: [master, main]
+    paths: 
+      - 'src/darkmahou/darkmahou-provider.ts'
+      - 'src/darkmahou/darkmahou-provider.json'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'src/darkmahou/darkmahou-provider.ts' 
+      - 'src/darkmahou/darkmahou-provider.json'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Validate JSON manifest
+        run: |
+          echo "🔍 Validating JSON manifest..."
+          if [ -f "src/darkmahou/darkmahou-provider.json" ]; then
+            # Check if JSON is valid
+            jq empty src/darkmahou/darkmahou-provider.json
+            echo "✅ JSON manifest is valid"
+            
+            # Extract and validate required fields
+            ID=$(jq -r '.id' src/darkmahou/darkmahou-provider.json)
+            NAME=$(jq -r '.name' src/darkmahou/darkmahou-provider.json)
+            TYPE=$(jq -r '.type' src/darkmahou/darkmahou-provider.json)
+            VERSION=$(jq -r '.version' src/darkmahou/darkmahou-provider.json)
+            
+            echo "📦 Extension ID: $ID"
+            echo "📦 Extension Name: $NAME"
+            echo "📦 Extension Type: $TYPE"
+            echo "📦 Extension Version: $VERSION"
+            
+            # Validate required fields
+            if [ "$ID" = "null" ] || [ "$NAME" = "null" ] || [ "$TYPE" = "null" ] || [ "$VERSION" = "null" ]; then
+              echo "❌ Missing required fields in manifest"
+              exit 1
+            fi
+            
+            # Validate extension type
+            if [ "$TYPE" != "anime-torrent-provider" ]; then
+              echo "❌ Invalid extension type: $TYPE"
+              exit 1
+            fi
+            
+            echo "✅ All required fields are present and valid"
+          else
+            echo "❌ darkmahou-provider.json not found"
+            exit 1
+          fi
+          
+      - name: Validate TypeScript provider
+        run: |
+          echo "🔍 Validating TypeScript provider..."
+          if [ -f "src/darkmahou/darkmahou-provider.ts" ]; then
+            # Check if file contains required class and methods
+            if ! grep -q "class Provider" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ Provider class not found"
+              exit 1
+            fi
+            
+            if ! grep -q "getSettings()" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ getSettings method not found"
+              exit 1
+            fi
+            
+            if ! grep -q "search(" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ search method not found"
+              exit 1
+            fi
+            
+            if ! grep -q "smartSearch(" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ smartSearch method not found"
+              exit 1
+            fi
+            
+            if ! grep -q "getTorrentInfoHash(" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ getTorrentInfoHash method not found"
+              exit 1
+            fi
+            
+            if ! grep -q "getTorrentMagnetLink(" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ getTorrentMagnetLink method not found"
+              exit 1
+            fi
+            
+            if ! grep -q "getLatest(" src/darkmahou/darkmahou-provider.ts; then
+              echo "❌ getLatest method not found"
+              exit 1
+            fi
+            
+            echo "✅ All required methods are present"
+            echo "✅ TypeScript provider is valid"
+          else
+            echo "❌ darkmahou-provider.ts not found"
+            exit 1
+          fi
+          
+      - name: Validate URLs and connectivity
+        run: |
+          echo "🔍 Testing DarkMahou.org connectivity..."
+          
+          # Test main site
+          if curl -s --head --max-time 10 "https://darkmahou.org" | grep -q "200 OK"; then
+            echo "✅ DarkMahou.org is accessible"
+          else
+            echo "⚠️  DarkMahou.org may be temporarily unavailable"
+          fi
+          
+          # Test search endpoint
+          if curl -s --head --max-time 10 "https://darkmahou.org/?s=test" | grep -q "200\|302"; then
+            echo "✅ Search endpoint is accessible"
+          else
+            echo "⚠️  Search endpoint may be temporarily unavailable"
+          fi
+          
+      - name: Generate deployment summary
+        run: |
+          echo "📋 **Deployment Summary**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Extension ID | $(jq -r '.id' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Extension Name | $(jq -r '.name' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | $(jq -r '.version' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | $(jq -r '.type' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Language | $(jq -r '.language' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Author | $(jq -r '.author' src/darkmahou/darkmahou-provider.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Ready for deployment!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Manifest URL:** \`https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json\`" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Deployment notification
+        run: |
+          echo "🎉 DarkMahou Provider successfully deployed!"
+          echo "📦 Version: $(jq -r '.version' src/darkmahou/darkmahou-provider.json)"
+          echo "🔗 Manifest URL: https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json"

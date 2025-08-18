@@ -1,0 +1,119 @@
+name: Auto Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(jq -r '.version' src/darkmahou/darkmahou-provider.json)
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Current version: $CURRENT_VERSION"
+          
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.current }}"
+          BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+          
+          # Parse current version
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          
+          # Bump version based on type
+          case $BUMP_TYPE in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="$major.$minor.$patch"
+          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 New version: $NEW_VERSION"
+          
+      - name: Update version in manifest
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.new }}"
+          echo "🔄 Updating version to $NEW_VERSION"
+          
+          # Update version in JSON manifest
+          jq --arg version "$NEW_VERSION" '.version = $version' src/darkmahou/darkmahou-provider.json > tmp.json
+          mv tmp.json src/darkmahou/darkmahou-provider.json
+          
+          echo "✅ Version updated in manifest"
+          
+      - name: Commit version bump
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.new }}"
+          BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+          
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add src/darkmahou/darkmahou-provider.json
+          git commit -m "🔖 Bump version to $NEW_VERSION ($BUMP_TYPE)"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          
+      - name: Push changes
+        run: |
+          git push origin master
+          git push origin --tags
+          
+      - name: Create release notes
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.new }}"
+          echo "🎉 **DarkMahou Provider v$NEW_VERSION Released!**" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## Changes" >> release_notes.md
+          echo "- Version bump (${{ github.event.inputs.bump_type }})" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## Installation" >> release_notes.md
+          echo "Add this manifest URL to Seanime:" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+          echo "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+          
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.new_version.outputs.new }}
+          release_name: DarkMahou Provider v${{ steps.new_version.outputs.new }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
