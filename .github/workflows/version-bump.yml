@@ -104,16 +104,14 @@ jobs:
           echo "## Installation" >> release_notes.md
           echo "Add this manifest URL to Seanime:" >> release_notes.md
           echo "\`\`\`" >> release_notes.md
-          echo "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/src/darkmahou/darkmahou-provider.json" >> release_notes.md
+          echo "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/src/darkmahou/darkmahou-provider.json" >> release_notes.md
           echo "\`\`\`" >> release_notes.md
           
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.new_version.outputs.new }}
-          release_name: DarkMahou Provider v${{ steps.new_version.outputs.new }}
+          name: DarkMahou Provider v${{ steps.new_version.outputs.new }}
           body_path: release_notes.md
           draft: false
           prerelease: false
