@@ -10,7 +10,7 @@ class Provider {
             canSmartSearch: true,
             smartSearchFilters: ["episodeNumber", "resolution", "query"],
             supportsAdult: false,
-            type: "special"
+            type: "main"
         }
     }
 
