@@ -1,7 +1,7 @@
 {
   "id": "darkmahou-provider",
   "name": "DarkMahou Provider",
-  "manifestURI": "https://raw.githubusercontent.com/seu-usuario/Plugin-seanime-torrent/main/darkmahou-provider.json",
+  "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/refs/heads/master/darkmahou-provider.json",
   "language": "typescript",
   "type": "torrent-provider",
   "description": "Provider para buscar torrents de anime no site DarkMahou.org com suporte a busca inteligente e conversão automática de termos.",
