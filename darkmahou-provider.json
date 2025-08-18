@@ -1,12 +1,12 @@
 {
   "id": "darkmahou-provider",
   "name": "DarkMahou Provider",
-  "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/refs/heads/master/darkmahou-provider.json",
+  "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/darkmahou-provider.json",
   "language": "typescript",
   "type": "torrent-provider",
   "description": "Provider para buscar torrents de anime no site DarkMahou.org com suporte a busca inteligente e conversão automática de termos.",
   "author": "Jhoorodr",
-  "icon": "https://raw.githubusercontent.com/seu-usuario/Plugin-seanime-torrent/main/icon.png",
-  "website": "https://darkmahou.org",
+  "icon": "https://raw.githubusercontent.com/Jhoorodre/darkmahou-provider-seanime/master/icon.png",
+  "website": "https://github.com/Jhoorodre/darkmahou-provider-seanime",
   "lang": "pt-br"
 }
