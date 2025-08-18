@@ -1,1 +1,1 @@
-# Darkmahou-provider
+# seanime-provider
