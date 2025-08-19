@@ -162,11 +162,11 @@ class UrlBuilder {
  * Classe responsável por requisições HTTP
  */
 class HttpClient {
-    static async fetchHtml(url: string): Promise<string | null> {
+    static async fetchHtml(url: string, timeout: number = Provider.CONFIG.TIMEOUT): Promise<string | null> {
         try {
             const response = await fetch(url, { 
                 headers: Provider.DEFAULT_HEADERS,
-                timeout: Provider.CONFIG.TIMEOUT
+                timeout: timeout
             });
             if (!response.ok) return null;
             return await response.text();
@@ -376,14 +376,24 @@ class PlayerExtractor {
         while ((match = Provider.REGEX_PATTERNS.IFRAME_AVISO.exec(html)) !== null) {
             const iframeSrc = match[1];
             
-            try {
-                // Processar página de aviso para obter URL real
-                const realUrl = await PlayerExtractor.processAvisoPage(iframeSrc);
-                if (realUrl) {
-                    PlayerExtractor.mapPlayerByUrl(players, realUrl);
+            // Extrair URL real do parâmetro url=
+            const urlMatch = iframeSrc.match(Provider.REGEX_PATTERNS.URL_PARAM);
+            if (urlMatch) {
+                const playerUrl = decodeURIComponent(urlMatch[1]);
+                
+                // Tentar extrair URL de vídeo real do player
+                try {
+                    const videoUrl = await PlayerExtractor.extractVideoUrl(playerUrl);
+                    if (videoUrl) {
+                        PlayerExtractor.mapPlayerByUrl(players, videoUrl);
+                    } else {
+                        PlayerExtractor.mapPlayerByUrl(players, playerUrl);
+                    }
+                } catch (error) {
+                    console.error("Erro ao extrair URL de vídeo:", error);
+                    PlayerExtractor.mapPlayerByUrl(players, playerUrl);
                 }
-            } catch (error) {
-                console.error("Erro ao processar página de aviso:", error);
+            } else {
                 // Fallback: usar URL do iframe completa
                 PlayerExtractor.mapPlayerByUrl(players, iframeSrc);
             }
@@ -396,42 +406,470 @@ class PlayerExtractor {
     }
 
     /**
-     * Processa a página de aviso para obter a URL real do player
+     * Processa a página de aviso para obter a URL real do stream
      */
     private static async processAvisoPage(avisoUrl: string): Promise<string | null> {
         try {
-            // Buscar a página de aviso
-            const avisoHtml = await HttpClient.fetchHtml(avisoUrl);
-            if (!avisoHtml) return null;
-
-            // Extrair URL do parâmetro original
+            // Extrair URL do parâmetro primeiro (mais rápido)
             const urlMatch = avisoUrl.match(Provider.REGEX_PATTERNS.URL_PARAM);
             if (!urlMatch) return null;
 
-            const originalUrl = decodeURIComponent(urlMatch[1]);
+            const playerUrl = decodeURIComponent(urlMatch[1]);
             
-            // Verificar se a página tem o botão de confirmação
-            if (avisoHtml.includes("redirecionarParaVideo") || avisoHtml.includes("Deseja continuar")) {
-                // Simular clique no botão "Sim" retornando a URL original
-                // que agora deve funcionar após "passar" pela página de aviso
-                return originalUrl;
+            // Tentar extrair stream com timeout curto (5s)
+            try {
+                const streamUrl = await PlayerExtractor.extractStreamFromPlayer(playerUrl);
+                if (streamUrl && streamUrl !== playerUrl) {
+                    return streamUrl;
+                }
+            } catch (error) {
+                console.log("Timeout na extração do stream, usando player URL:", error);
             }
-
-            return originalUrl;
+            
+            // Fallback: retornar URL do player
+            return playerUrl;
         } catch (error) {
             console.error("Erro ao processar página de aviso:", error);
             return null;
         }
     }
 
+    /**
+     * Extrai a URL real do vídeo MP4 do player
+     */
+    private static async extractVideoUrl(playerUrl: string): Promise<string | null> {
+        try {
+            console.log("Extraindo vídeo de:", playerUrl);
+            
+            // Buscar o HTML do player com timeout de 5s
+            const playerHtml = await HttpClient.fetchHtml(playerUrl, 5000);
+            if (!playerHtml) return null;
+
+            // Verificar se é disneycdn.net - sempre tentar extrair URL real
+            if (playerUrl.includes("disneycdn.net")) {
+                console.log("URL Disney detectada, extraindo URL real:", playerUrl);
+                
+                // Sempre tentar extrair stream específico primeiro
+                if (playerUrl.includes("#")) {
+                    const disneyUrl = await PlayerExtractor.extractDisneyUrl(playerUrl, playerHtml);
+                    if (disneyUrl && disneyUrl !== playerUrl) {
+                        console.log("URL Disney extraída:", disneyUrl);
+                        return disneyUrl;
+                    }
+                }
+                
+                // Fallback: retornar URL original
+                console.log("Usando URL Disney original como fallback");
+                return playerUrl;
+            }
+
+            // Buscar especificamente por URLs secvideo com get_file
+            const videoUrls = PlayerExtractor.extractSecvideoUrls(playerHtml);
+            if (videoUrls.length > 0) {
+                console.log("URLs brutos extraídos:", videoUrls);
+                
+                // Se a primeira URL contém múltiplas URLs concatenadas, separar
+                if (videoUrls.length === 1 && videoUrls[0].includes("[360p]") && videoUrls[0].includes("[720p]")) {
+                    console.log("Detectada string concatenada, separando...");
+                    const separatedUrls = PlayerExtractor.separateConcatenatedUrls(videoUrls[0]);
+                    console.log("URLs separadas:", separatedUrls);
+                    
+                    if (separatedUrls.length > 0) {
+                        const bestUrl = PlayerExtractor.selectBestQuality(separatedUrls);
+                        if (bestUrl) {
+                            console.log("URL secvideo selecionada:", bestUrl);
+                            return bestUrl;
+                        }
+                    }
+                } else {
+                    // URLs já estão separadas
+                    const bestUrl = PlayerExtractor.selectBestQuality(videoUrls);
+                    if (bestUrl) {
+                        console.log("URL secvideo selecionada:", bestUrl);
+                        return bestUrl;
+                    }
+                }
+            }
+
+            // Padrões gerais como fallback
+            const videoPatterns = [
+                // URLs MP4 diretas
+                /["']([^"']*\.mp4[^"']*?)["']/gi,
+                /src:\s*["']([^"']*\.mp4[^"']*?)["']/gi,
+                /file:\s*["']([^"']*\.mp4[^"']*?)["']/gi,
+                /source:\s*["']([^"']*\.mp4[^"']*?)["']/gi,
+                
+                // URLs M3U8
+                /["']([^"']*\.m3u8[^"']*?)["']/gi,
+                /src:\s*["']([^"']*\.m3u8[^"']*?)["']/gi,
+                /file:\s*["']([^"']*\.m3u8[^"']*?)["']/gi,
+                
+                // Configurações de players
+                /sources?:\s*\[?\s*["']([^"']*\.(?:mp4|m3u8)[^"']*?)["']/gi,
+                /url:\s*["']([^"']*\.(?:mp4|m3u8)[^"']*?)["']/gi
+            ];
+
+            for (const pattern of videoPatterns) {
+                pattern.lastIndex = 0; // Reset regex
+                const matches = [...playerHtml.matchAll(pattern)];
+                
+                for (const match of matches) {
+                    if (match[1] && (match[1].includes('.mp4') || match[1].includes('.m3u8'))) {
+                        let videoUrl = match[1];
+                        
+                        // Se a URL for relativa, tornar absoluta
+                        if (videoUrl.startsWith('/')) {
+                            const playerDomain = new URL(playerUrl).origin;
+                            videoUrl = playerDomain + videoUrl;
+                        }
+                        
+                        console.log("URL de vídeo encontrada:", videoUrl);
+                        return videoUrl;
+                    }
+                }
+            }
+
+            // Buscar por configurações de player mais complexas
+            const configPatterns = [
+                /jwplayer\([^)]*\)\.setup\(({.*?})\)/s,
+                /videojs\([^)]*,\s*({.*?})\)/s,
+                /player\.load\(({.*?})\)/s
+            ];
+
+            for (const pattern of configPatterns) {
+                const configMatch = playerHtml.match(pattern);
+                if (configMatch) {
+                    const config = configMatch[1];
+                    
+                    // Buscar URLs dentro da configuração
+                    const urlInConfig = config.match(/["']([^"']*\.(?:mp4|m3u8)[^"']*?)["']/);
+                    if (urlInConfig) {
+                        console.log("URL na configuração encontrada:", urlInConfig[1]);
+                        return urlInConfig[1];
+                    }
+                }
+            }
+
+            console.log("Nenhuma URL de vídeo encontrada no player");
+            return null;
+        } catch (error) {
+            console.error("Erro ao extrair URL de vídeo:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Extrai URL real do stream da disneycdn.net usando APIs descobertas
+     */
+    private static async extractDisneyUrl(playerUrl: string, playerHtml: string): Promise<string | null> {
+        try {
+            // Extrair hash da URL (ex: #yx3gl)
+            const hashMatch = playerUrl.match(/#(.+)$/);
+            if (!hashMatch) return null;
+            
+            const hash = hashMatch[1];
+            console.log("Hash Disney encontrado:", hash);
+            
+            // Primeiro tentar página de download para obter URLs diretas
+            const downloadUrl = `https://disneycdn.net/#${hash}&dl=1`;
+            try {
+                console.log("Tentando página de download:", downloadUrl);
+                const downloadHtml = await HttpClient.fetchHtml(downloadUrl, 5000);
+                if (downloadHtml) {
+                    console.log("HTML da página de download recebido, tamanho:", downloadHtml.length);
+                    
+                    // Log de amostra do HTML para debug
+                    const sample = downloadHtml.substring(0, 500);
+                    console.log("Amostra do HTML:", sample);
+                    
+                    // Buscar por URLs de download diretas (MP4 ou M3U8)
+                    const downloadPatterns = [
+                        // URLs de download diretas descobertas
+                        /href=["']([^"']*\/download[^"']*?)["']/gi,
+                        /href=["']([^"']*\.mp4[^"']*?)["']/gi,
+                        /href=["']([^"']*\.m3u8[^"']*?)["']/gi,
+                        // IPs diretos descobertos  
+                        /href=["']([^"']*85\.202\.160\.158[^"']*?)["']/gi,
+                        /href=["']([^"']*\d+\.\d+\.\d+\.\d+[^"']*?)["']/gi,
+                        // Padrão genérico para qualquer URL de vídeo
+                        /href=["']([^"']*\/[^\/]*\/[^\/]*\/hld\/[^"']*?)["']/gi,
+                        // Buscar por qualquer href com .mp4
+                        /<a[^>]*href=["']([^"']*\.mp4[^"']*)["']/gi,
+                        // Buscar por class downloader-button
+                        /<a[^>]*class=["'][^"']*downloader-button[^"']*["'][^>]*href=["']([^"']*)["']/gi
+                    ];
+
+                    for (const pattern of downloadPatterns) {
+                        pattern.lastIndex = 0;
+                        const matches = [...downloadHtml.matchAll(pattern)];
+                        
+                        for (const match of matches) {
+                            if (match[1]) {
+                                console.log("URL candidata encontrada:", match[1]);
+                                if (match[1].includes('.mp4') || match[1].includes('.m3u8') || match[1].includes('/download') || match[1].includes('hld/')) {
+                                    console.log("URL de download encontrada:", match[1]);
+                                    return match[1];
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log("Nenhuma URL de download encontrada na página &dl=1");
+                } else {
+                    console.log("Não foi possível carregar a página de download");
+                }
+            } catch (error) {
+                console.log("Erro na página de download:", error);
+            }
+            
+            // Tentar a API de vídeo como fallback
+            const videoApiUrl = `https://disneycdn.net/api/v1/video?id=${hash}&w=2560&h=1080&r=q1n.net`;
+            try {
+                console.log("Tentando API de vídeo:", videoApiUrl);
+                const videoResponse = await HttpClient.fetchHtml(videoApiUrl, 5000);
+                if (videoResponse) {
+                    // Buscar por URLs M3U8 na resposta da API
+                    const m3u8Match = videoResponse.match(/["']([^"']*\.m3u8[^"']*?)["']/);
+                    if (m3u8Match) {
+                        console.log("URL M3U8 encontrada na API:", m3u8Match[1]);
+                        return m3u8Match[1];
+                    }
+                }
+            } catch (error) {
+                console.log("Erro na API de vídeo:", error);
+            }
+            
+            // Buscar token para API de player no HTML
+            const tokenMatch = playerHtml.match(/[?&]t=([a-f0-9]+)/);
+            if (tokenMatch) {
+                const token = tokenMatch[1];
+                const playerApiUrl = `https://disneycdn.net/api/v1/player?t=${token}`;
+                
+                try {
+                    console.log("Tentando API de player:", playerApiUrl);
+                    const playerResponse = await HttpClient.fetchHtml(playerApiUrl, 5000);
+                    if (playerResponse) {
+                        // Buscar por URLs M3U8 na resposta da API do player
+                        const m3u8Match = playerResponse.match(/["']([^"']*\.m3u8[^"']*?)["']/);
+                        if (m3u8Match) {
+                            console.log("URL M3U8 encontrada na API do player:", m3u8Match[1]);
+                            return m3u8Match[1];
+                        }
+                    }
+                } catch (error) {
+                    console.log("Erro na API de player:", error);
+                }
+            }
+
+            // Buscar diretamente no HTML por URLs conhecidas
+            const patterns = [
+                // URLs M3U8 específicas encontradas
+                /["']([^"']*\/hls\/[^"']*\/master\.m3u8[^"']*?)["']/gi,
+                /["']([^"']*\.m3u8[^"']*?)["']/gi,
+                // APIs descobertas
+                /["']([^"']*\/api\/v1\/video[^"']*?)["']/gi,
+                /["']([^"']*\/api\/v1\/player[^"']*?)["']/gi,
+                // URLs que podem conter o hash
+                new RegExp(`["']([^"']*${hash}[^"']*?)["']`, 'gi')
+            ];
+
+            for (const pattern of patterns) {
+                pattern.lastIndex = 0;
+                const matches = [...playerHtml.matchAll(pattern)];
+                
+                for (const match of matches) {
+                    if (match[1] && (match[1].includes('.m3u8') || match[1].includes('/api/'))) {
+                        console.log("URL Disney candidata:", match[1]);
+                        
+                        // Se for uma URL relativa, tornar absoluta
+                        let fullUrl = match[1];
+                        if (fullUrl.startsWith('/')) {
+                            fullUrl = 'https://disneycdn.net' + fullUrl;
+                        }
+                        
+                        return fullUrl;
+                    }
+                }
+            }
+
+            // Tentar URLs de API baseadas no padrão descoberto
+            const apiUrls = [
+                `https://disneycdn.net/api/v1/video?id=${hash}&w=2560&h=1080&r=q1n.net`,
+                `https://disneycdn.net/hls/${hash}/master.m3u8`,
+                `https://disneycdn.net/video/${hash}.m3u8`
+            ];
+
+            // Testar se alguma dessas URLs existe
+            for (const apiUrl of apiUrls) {
+                try {
+                    const response = await fetch(apiUrl, { method: 'HEAD', timeout: 3000 });
+                    if (response.ok) {
+                        console.log("URL Disney API encontrada:", apiUrl);
+                        return apiUrl;
+                    }
+                } catch (error) {
+                    // Continuar tentando
+                }
+            }
+
+            console.log("Nenhuma URL Disney encontrada");
+            return null;
+        } catch (error) {
+            console.error("Erro ao extrair URL Disney:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Extrai URLs secvideo específicas do HTML
+     */
+    private static extractSecvideoUrls(html: string): string[] {
+        const urls: string[] = [];
+        
+        // Primeiro tentar padrão individual para cada qualidade
+        const qualityPatterns = [
+            /["']([^"']*secvideo[^"']*\/get_file\/[^"']*\.mp4\/)["']/gi,
+            /["']([^"']*secvideo[^"']*\/get_file\/[^"']*_360p\.mp4\/)["']/gi,
+            /["']([^"']*secvideo[^"']*\/get_file\/[^"']*_720p\.mp4\/)["']/gi,
+            /["']([^"']*secvideo[^"']*\/get_file\/[^"']*_1080p\.mp4\/)["']/gi
+        ];
+
+        for (const pattern of qualityPatterns) {
+            pattern.lastIndex = 0;
+            let match;
+            while ((match = pattern.exec(html)) !== null) {
+                if (match[1] && !urls.includes(match[1])) {
+                    urls.push(match[1]);
+                }
+            }
+        }
+
+        // Se não encontrou URLs individuais, buscar na string concatenada que aparece nos logs
+        if (urls.length === 0) {
+            console.log("Tentando extrair URLs da string concatenada");
+            
+            // Buscar por strings que contenham múltiplas URLs concatenadas
+            const concatenatedPattern = /\[360p\]([^,]+),\[720p\]([^,]+),\[1080p\]([^\]]+)/g;
+            let match;
+            while ((match = concatenatedPattern.exec(html)) !== null) {
+                console.log("Match encontrado:", match);
+                if (match[1]) {
+                    const url360 = match[1].trim();
+                    console.log("Adicionando 360p:", url360);
+                    urls.push(url360);
+                }
+                if (match[2]) {
+                    const url720 = match[2].trim();
+                    console.log("Adicionando 720p:", url720);
+                    urls.push(url720);
+                }
+                if (match[3]) {
+                    const url1080 = match[3].trim();
+                    console.log("Adicionando 1080p:", url1080);
+                    urls.push(url1080);
+                }
+            }
+            
+            // Se ainda não encontrou, tentar padrão mais simples
+            if (urls.length === 0) {
+                // Buscar diretamente por URLs secvideo no texto
+                const simplePattern = /(https:\/\/[^"'\s,\]]+secvideo[^"'\s,\]]+\.mp4\/)/gi;
+                let simpleMatch;
+                while ((simpleMatch = simplePattern.exec(html)) !== null) {
+                    if (simpleMatch[1] && !urls.includes(simpleMatch[1])) {
+                        console.log("URL simples encontrada:", simpleMatch[1]);
+                        urls.push(simpleMatch[1]);
+                    }
+                }
+            }
+        }
+        
+        return urls;
+    }
+
+    /**
+     * Separa URLs concatenadas em URLs individuais
+     */
+    private static separateConcatenatedUrls(concatenatedString: string): string[] {
+        const urls: string[] = [];
+        
+        console.log("String para separar:", concatenatedString);
+        
+        // Padrão: [360p]URL,[720p]URL,[1080p]URL
+        const patterns = [
+            // Buscar 360p
+            /\[360p\]([^,\[]+)/,
+            // Buscar 720p  
+            /\[720p\]([^,\[]+)/,
+            // Buscar 1080p
+            /\[1080p\]([^,\[]+)/
+        ];
+        
+        for (const pattern of patterns) {
+            const match = concatenatedString.match(pattern);
+            if (match && match[1]) {
+                const cleanUrl = match[1].trim();
+                console.log("URL encontrada:", cleanUrl);
+                urls.push(cleanUrl);
+            }
+        }
+        
+        return urls;
+    }
+
+    /**
+     * Seleciona a melhor qualidade disponível das URLs
+     */
+    private static selectBestQuality(urls: string[]): string | null {
+        if (urls.length === 0) return null;
+        
+        console.log("URLs secvideo encontradas:", urls);
+        
+        // Ordem de preferência: sem sufixo (1080p) > 1080p > 720p > 360p
+        const qualityOrder = ['', '1080p', '720p', '360p'];
+        
+        for (const quality of qualityOrder) {
+            for (const url of urls) {
+                if (quality === '') {
+                    // URL sem sufixo de qualidade (geralmente 1080p)
+                    if (!url.includes('_360p') && !url.includes('_720p') && !url.includes('_1080p')) {
+                        console.log("URL selecionada (sem sufixo):", url);
+                        return url;
+                    }
+                } else {
+                    if (url.includes(`_${quality}`)) {
+                        console.log(`URL selecionada (${quality}):`, url);
+                        return url;
+                    }
+                }
+            }
+        }
+        
+        // Fallback: retorna a primeira URL
+        console.log("URL fallback:", urls[0]);
+        return urls[0];
+    }
+
     private static mapPlayerByUrl(players: Map<string, string>, url: string): void {
+        console.log("Mapeando URL:", url);
+        
         if (url.includes("disneycdn.net") && !players.has("chplay")) {
+            console.log("Mapeado como chplay (Disney)");
             players.set("chplay", url);
-        } else if (url.includes("csst.online") && !players.has("ruplay")) {
+        } else if ((url.includes("csst.online") || url.includes("secvideo")) && !players.has("ruplay")) {
+            console.log("Mapeado como ruplay (Secvideo)");
             players.set("ruplay", url);
+        } else if (url.includes("secvideo") && !players.has("ruplay")) {
+            console.log("Mapeado como ruplay (Secvideo - fallback)");
+            players.set("ruplay", url);
+        } else if (url.includes("disneycdn.net")) {
+            console.log("Mapeado como chplay (Disney - override)");
+            players.set("chplay", url);
         } else if (!players.has("chplay")) {
+            console.log("Mapeado como chplay (fallback)");
             players.set("chplay", url);
         } else if (!players.has("ruplay")) {
+            console.log("Mapeado como ruplay (fallback)");
             players.set("ruplay", url);
         }
     }
@@ -448,10 +886,36 @@ class PlayerExtractor {
  */
 class PlayerSelector {
     static selectBest(players: Map<string, string>, preferredServer: string): string {
-        const playerUrl = players.get(preferredServer) || 
-                         players.get(Provider.CONFIG.DEFAULT_SERVER) || 
-                         players.get(Provider.CONFIG.SUPPORTED_SERVERS[1]) || 
-                         players.values().next().value;
+        console.log("PlayerSelector - Players disponíveis:", Array.from(players.entries()));
+        console.log("PlayerSelector - Servidor preferido:", preferredServer);
+        
+        // Limpar espaços em branco do servidor preferido
+        const cleanPreferredServer = preferredServer.trim();
+        console.log("PlayerSelector - Servidor preferido (limpo):", cleanPreferredServer);
+        
+        // Primeiro tentar o servidor preferido
+        let playerUrl = players.get(cleanPreferredServer);
+        console.log("PlayerSelector - URL do servidor preferido:", playerUrl);
+        
+        if (!playerUrl) {
+            // Fallback para servidor padrão
+            playerUrl = players.get(Provider.CONFIG.DEFAULT_SERVER);
+            console.log("PlayerSelector - URL do servidor padrão:", playerUrl);
+        }
+        
+        if (!playerUrl) {
+            // Fallback para segundo servidor
+            playerUrl = players.get(Provider.CONFIG.SUPPORTED_SERVERS[1]);
+            console.log("PlayerSelector - URL do segundo servidor:", playerUrl);
+        }
+        
+        if (!playerUrl) {
+            // Último fallback: qualquer URL disponível
+            playerUrl = players.values().next().value;
+            console.log("PlayerSelector - URL de fallback:", playerUrl);
+        }
+
+        console.log("PlayerSelector - URL final selecionada:", playerUrl);
 
         if (!playerUrl || playerUrl.includes("about:blank")) {
             throw new Error("Nenhuma fonte de vídeo encontrada na página");
