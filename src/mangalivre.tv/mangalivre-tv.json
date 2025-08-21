@@ -1,0 +1,11 @@
+{
+    "id": "mangalivre-tv",
+    "name": "MangaLivre.tv",
+    "description": "Manga provider para o site MangaLivre.tv - Site brasileiro de mangás traduzidos em português",
+    "manifestURI": "",
+    "version": "1.0.0",
+    "author": "jhoorodr",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+}
