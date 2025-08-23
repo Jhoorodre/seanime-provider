@@ -5,7 +5,10 @@
 type Resolution = '480p' | '720p' | '1080p' | '1440p' | '4K';
 type CommonResolution = 480 | 720 | 1080;
 type ConfidenceLevel = 'high' | 'medium' | 'low';
-type ParseMethod = 'loadDoc' | 'regex';
+type ParseMethod = 'regex';
+type MatchStrategy = 'exact' | 'fuzzy' | 'normalized' | 'phonetic';
+type CacheKey = string & { readonly __cacheKey: true };
+type Timestamp = number & { readonly __timestamp: true };
 
 // Template literal type for URL patterns
 type URLPattern = `/${string}`;
@@ -15,6 +18,12 @@ type MagnetLink = `magnet:?${string}`;
 // Branded types for type safety
 type InfoHash = string & { readonly __brand: unique symbol };
 type EpisodeNumber = number & { readonly __brand: unique symbol };
+type NormalizedString = string & { readonly __normalized: true };
+type FuzzyScore = number & { readonly __range: '0-100' };
+
+// Advanced matching types
+type StringDistance = number & { readonly __levenshtein: true };
+type SimilarityScore = number & { readonly __similarity: '0-1' };
 
 // Configuration with stronger typing
 const PROVIDER_CONFIG = {
@@ -62,20 +71,130 @@ const PORTUGUESE_TRANSLATIONS = {
 
 const EXCLUDED_URL_PATTERNS = [
     "/?s=", "/tag/", "/blog/", "/contato", "/az-lists", 
-    "/em-breve", "/animes-populares", "/categoria", "/genero"
+    "/em-breve", "/animes-populares", "/categoria", "/genero",
+    "/lord-of-mysteries/", "/yofukashi-no-uta", "/zutaboro-reijou", 
+    "/watari-kun", "/silent-witch", "/tougen-anki", "/arknights"
 ] as const;
+
+// Performance optimization constants
+const PERFORMANCE_CONFIG = {
+    CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
+    MAX_CACHE_SIZE: 100,
+    EARLY_EXIT_SCORE: 95,
+    MAX_FUZZY_CANDIDATES: 5,
+    MIN_TITLE_LENGTH: 2
+} as const;
+
+// Cache interfaces with TypeScript generics
+interface CacheEntry<T> {
+    readonly data: T;
+    readonly timestamp: Timestamp;
+    readonly key: CacheKey;
+}
+
+interface PerformanceMetrics {
+    searchTime: number;
+    parseTime: number;
+    cacheHits: number;
+    cacheMisses: number;
+    fuzzyMatchCount: number;
+}
+
+interface ReadonlyPerformanceMetrics {
+    readonly searchTime: number;
+    readonly parseTime: number;
+    readonly cacheHits: number;
+    readonly cacheMisses: number;
+    readonly fuzzyMatchCount: number;
+}
+
+// Fuzzy matching configuration with type safety
+const FUZZY_MATCH_CONFIG = {
+    maxDistance: 5,
+    minSimilarity: 0.6,
+    strategies: ['exact', 'fuzzy', 'normalized', 'phonetic'] as const,
+    weights: {
+        exact: 100,
+        fuzzy: 80,
+        normalized: 70,
+        phonetic: 60
+    }
+} as const satisfies FuzzyMatchConfig;
+
+// Character normalization mapping using advanced TypeScript patterns
+const CHARACTER_NORMALIZATIONS = {
+    // Diacritics normalization
+    'á': 'a', 'à': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
+    'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
+    'ó': 'o', 'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
+    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
+    'ç': 'c', 'ñ': 'n',
+    // Japanese romanization variants
+    'ō': 'o', 'ū': 'u', 'ā': 'a', 'ē': 'e', 'ī': 'i',
+    // Common spacing variations
+    '\u3000': ' ', // Japanese full-width space
+    '\t': ' ',
+    '\n': ' ',
+    '\r': ' '
+} as const satisfies CharacterNormalizationMap;
+
+// Common anime title variations for better matching
+const ANIME_TITLE_VARIATIONS = {
+    // Common word separations that should be normalized
+    patterns: [
+        // Handle compound words that might be written together or apart
+        { from: /mahou\s+tsukai/gi, to: 'mahoutsukai' },
+        { from: /maho\s+tsukai/gi, to: 'mahotsukai' },
+        { from: /seirei\s+tsukai/gi, to: 'seireitsukai' },
+        { from: /ken\s+shi/gi, to: 'kenshi' },
+        { from: /yuu\s+sha/gi, to: 'yuusha' },
+        // Handle common romanization differences
+        { from: /ou/g, to: 'o' },
+        { from: /uu/g, to: 'u' },
+        { from: /ei/g, to: 'e' },
+        // Handle season/episode markers
+        { from: /season\s*(\d+)/gi, to: 'S$1' },
+        { from: /episod[ei]o?\s*(\d+)/gi, to: 'E$1' }
+    ]
+} as const;
 
 // Advanced type definitions with generics and constraints
 interface ScoreMatch {
     readonly url: string;
     readonly title: string;
-    readonly score: number;
+    readonly score: FuzzyScore;
+    readonly strategy: MatchStrategy;
+    readonly normalizedTitle?: NormalizedString;
+    readonly distance?: StringDistance;
 }
 
 interface EpisodeExtractionResult {
     readonly episodeNumber: EpisodeNumber;
     readonly confidence: ConfidenceLevel;
 }
+
+// Fuzzy matching configuration with const assertions
+interface FuzzyMatchConfig {
+    readonly maxDistance: number;
+    readonly minSimilarity: number;
+    readonly strategies: readonly MatchStrategy[];
+    readonly weights: {
+        readonly exact: number;
+        readonly fuzzy: number;
+        readonly normalized: number;
+        readonly phonetic: number;
+    };
+}
+
+// Character normalization mapping using mapped types
+type CharacterNormalizationMap = {
+    readonly [K in string]: string;
+};
+
+// Template literal types for string transformations
+type SpaceVariations = ' ' | '　' | '\t' | '\n';
+type DiacriticVariations = 'á' | 'à' | 'â' | 'ã' | 'ä' | 'é' | 'è' | 'ê' | 'ë' | 'í' | 'ì' | 'î' | 'ï' | 'ó' | 'ò' | 'ô' | 'õ' | 'ö' | 'ú' | 'ù' | 'û' | 'ü' | 'ç' | 'ñ';
 
 // Result type for better error handling
 type Result<T, E = Error> = 
@@ -92,6 +211,24 @@ interface Parser<TInput, TOutput> {
     parse(input: TInput): TOutput;
 }
 
+// Fuzzy matching interfaces with generics
+interface StringMatcher<TConfig = FuzzyMatchConfig> {
+    match(query: string, target: string, config?: TConfig): FuzzyScore;
+    normalize(input: string): NormalizedString;
+}
+
+interface DistanceCalculator {
+    calculate(a: string, b: string): StringDistance;
+}
+
+// Advanced conditional types for matching strategies
+type MatchingResult<T extends MatchStrategy> = 
+    T extends 'exact' ? { score: 100; exact: true } :
+    T extends 'fuzzy' ? { score: FuzzyScore; distance: StringDistance } :
+    T extends 'normalized' ? { score: FuzzyScore; normalized: true } :
+    T extends 'phonetic' ? { score: FuzzyScore; phonetic: true } :
+    never;
+
 // Type guard functions
 const isValidMagnetLink = (link: string): link is MagnetLink =>
     link.startsWith('magnet:?') && link.length > 20;
@@ -102,6 +239,15 @@ const isValidInfoHash = (hash: string): hash is InfoHash =>
 const isValidEpisodeNumber = (num: number): num is EpisodeNumber =>
     num >= PROVIDER_CONFIG.MIN_EPISODE_NUMBER && 
     num <= PROVIDER_CONFIG.MAX_EPISODE_NUMBER;
+
+const isNormalizedString = (str: string): str is NormalizedString =>
+    typeof str === 'string' && str.length > 0;
+
+const isFuzzyScore = (score: number): score is FuzzyScore =>
+    score >= 0 && score <= 100;
+
+const isValidStringDistance = (distance: number): distance is StringDistance =>
+    distance >= 0 && Number.isInteger(distance);
 
 // Utility Classes with advanced TypeScript patterns
 class PortugueseTranslator implements Parser<string, string> {
@@ -271,76 +417,315 @@ class TorrentParser {
     }
 }
 
+// High-performance cache implementation with TypeScript generics
+class PerformanceCache {
+    private static readonly _cache = new Map<CacheKey, CacheEntry<any>>();
+    private static _metrics: PerformanceMetrics = {
+        searchTime: 0,
+        parseTime: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        fuzzyMatchCount: 0
+    };
+    
+    static get<T>(key: string): T | null {
+        const cacheKey = this.createCacheKey(key);
+        const entry = this._cache.get(cacheKey);
+        
+        if (!entry) {
+            this._metrics.cacheMisses++;
+            return null;
+        }
+        
+        // Check TTL
+        const now = Date.now() as Timestamp;
+        if (now - entry.timestamp > PERFORMANCE_CONFIG.CACHE_TTL_MS) {
+            this._cache.delete(cacheKey);
+            this._metrics.cacheMisses++;
+            return null;
+        }
+        
+        this._metrics.cacheHits++;
+        return entry.data;
+    }
+    
+    static set<T>(key: string, data: T): void {
+        // Prevent cache overflow
+        if (this._cache.size >= PERFORMANCE_CONFIG.MAX_CACHE_SIZE) {
+            const firstKey = this._cache.keys().next().value;
+            if (firstKey) this._cache.delete(firstKey);
+        }
+        
+        const cacheKey = this.createCacheKey(key);
+        const entry: CacheEntry<T> = {
+            data,
+            timestamp: Date.now() as Timestamp,
+            key: cacheKey
+        };
+        
+        this._cache.set(cacheKey, entry);
+    }
+    
+    private static createCacheKey(key: string): CacheKey {
+        return key.toLowerCase().replace(/\s+/g, '_') as CacheKey;
+    }
+    
+    static getMetrics(): ReadonlyPerformanceMetrics {
+        return { ...this._metrics };
+    }
+    
+    static incrementFuzzyCount(): void {
+        this._metrics.fuzzyMatchCount++;
+    }
+    
+    static recordSearchTime(time: number): void {
+        this._metrics.searchTime += time;
+    }
+    
+    static recordParseTime(time: number): void {
+        this._metrics.parseTime += time;
+    }
+}
+
+// Enhanced AnimePageExtractor with optimized fuzzy matching
 class AnimePageExtractor {
+    // Use lazy initialization to avoid temporal dead zone issues
+    private static _fuzzyMatcher: FuzzyStringMatcher | null = null;
+    
+    private static get fuzzyMatcher(): FuzzyStringMatcher {
+        if (!this._fuzzyMatcher) {
+            this._fuzzyMatcher = new FuzzyStringMatcher();
+        }
+        return this._fuzzyMatcher;
+    }
     static extractPageURL(html: string, query: string): string {
         try {
             console.log("Extracting anime page URL for query: " + query);
             
+            // Check cache first
+            const cacheKey = `page_extract_${query}`;
+            const cached = PerformanceCache.get<string>(cacheKey);
+            if (cached) {
+                console.log("Cache hit for page extraction: " + query);
+                return cached;
+            }
+            
             const potentialLinks: ScoreMatch[] = [];
-            let match;
+            let match: RegExpExecArray | null;
             const linkRegex = new RegExp(REGEX_PATTERNS.ANIME_PAGE_LINK.source, 'gi');
+            let processedCount = 0;
             
             while ((match = linkRegex.exec(html)) !== null) {
                 const url = match[1];
                 const title = match[2] || "";
                 
-                if (AnimePageExtractor.shouldSkipURL(url)) {
+                // Enhanced URL filtering
+                if (AnimePageExtractor.shouldSkipURL(url) || title.length < PERFORMANCE_CONFIG.MIN_TITLE_LENGTH) {
                     continue;
                 }
                 
-                const score = AnimePageExtractor.calculateMatchScore(query, title, url);
-                if (score > 0) {
-                    potentialLinks.push({ url, title, score });
-                    console.log("Found potential match: " + title + " (" + url + ") - Score: " + score);
+                const matchResult = AnimePageExtractor.calculateAdvancedMatchScore(query, title, url);
+                if (matchResult.score > 0) {
+                    potentialLinks.push(matchResult);
+                    console.log(`Found potential match: ${title} (${url}) - Score: ${matchResult.score} (Strategy: ${matchResult.strategy})`);
+                    
+                    // Early exit for very high scores
+                    if (matchResult.score >= PERFORMANCE_CONFIG.EARLY_EXIT_SCORE) {
+                        console.log("Early exit triggered for high-scoring match");
+                        const result = matchResult.url;
+                        PerformanceCache.set(cacheKey, result);
+                        return result;
+                    }
+                }
+                
+                processedCount++;
+                // Limit fuzzy matching candidates to prevent performance degradation
+                if (processedCount >= PERFORMANCE_CONFIG.MAX_FUZZY_CANDIDATES * 2) {
+                    console.log("Limiting fuzzy matching candidates for performance");
+                    break;
                 }
             }
             
-            return AnimePageExtractor.selectBestMatch(potentialLinks);
+            const result = AnimePageExtractor.selectBestMatch(potentialLinks);
+            if (result) {
+                PerformanceCache.set(cacheKey, result);
+            }
+            return result;
             
         } catch (error) {
-            console.log("Error extracting anime page URL: " + error.message);
+            console.log("Error extracting anime page URL: " + (error as Error).message);
             return "";
         }
     }
     
     private static shouldSkipURL(url: string): boolean {
-        return EXCLUDED_URL_PATTERNS.some(pattern => url.includes(pattern));
+        // Fast string-based filtering before regex
+        const lowerUrl = url.toLowerCase();
+        return EXCLUDED_URL_PATTERNS.some(pattern => lowerUrl.includes(pattern)) ||
+               lowerUrl.includes('/page/') ||
+               lowerUrl.includes('/search/') ||
+               lowerUrl.includes('/category/') ||
+               lowerUrl.includes('/?') ||
+               lowerUrl.endsWith('.jpg') ||
+               lowerUrl.endsWith('.png') ||
+               lowerUrl.endsWith('.css') ||
+               lowerUrl.endsWith('.js');
     }
     
-    private static calculateMatchScore(query: string, title: string, url: string): number {
+    // Optimized matching with early termination and intelligent strategy selection
+    private static calculateAdvancedMatchScore(query: string, title: string, url: string): ScoreMatch {
+        PerformanceCache.incrementFuzzyCount();
+        
+        // Quick exact match check first (fastest)
         const queryLower = query.toLowerCase();
         const titleLower = title.toLowerCase();
-        const urlLower = url.toLowerCase();
         
-        // Exact title match gets highest score
-        if (titleLower === queryLower) {
-            return 100;
+        if (queryLower === titleLower) {
+            return {
+                url,
+                title,
+                score: 100 as FuzzyScore,
+                strategy: 'exact',
+                normalizedTitle: titleLower as NormalizedString
+            };
         }
         
-        // Title contains query
+        // Quick substring check (fast)
         if (titleLower.includes(queryLower)) {
-            return 50;
+            return {
+                url,
+                title,
+                score: 90 as FuzzyScore,
+                strategy: 'exact',
+                normalizedTitle: titleLower as NormalizedString
+            };
         }
         
-        // URL contains query (with dash replacement)
-        if (urlLower.includes(queryLower.replace(/\s+/g, '-'))) {
-            return 30;
+        // Compound word check (medium cost, high accuracy)
+        const compoundScore = this.calculateCompoundWordScore(query, title);
+        if (compoundScore >= 80) {
+            return {
+                url,
+                title,
+                score: compoundScore as FuzzyScore,
+                strategy: 'phonetic',
+                normalizedTitle: titleLower as NormalizedString
+            };
+        }
+        
+        // URL slug matching (medium cost)
+        const urlSlug = this.extractSlugFromURL(url);
+        if (urlSlug.length > 3) {
+            const urlScore = this.fuzzyMatcher.match(query, urlSlug);
+            if (urlScore >= 75) {
+                return {
+                    url,
+                    title,
+                    score: urlScore,
+                    strategy: 'normalized',
+                    normalizedTitle: titleLower as NormalizedString
+                };
+            }
+        }
+        
+        // Expensive fuzzy matching only as last resort
+        const normalizedQuery = this.fuzzyMatcher.normalize(query);
+        const normalizedTitle = this.fuzzyMatcher.normalize(title);
+        const fuzzyScore = this.fuzzyMatcher.match(normalizedQuery, normalizedTitle);
+        
+        const finalScore = isFuzzyScore(fuzzyScore) ? fuzzyScore : 0 as FuzzyScore;
+        
+        return {
+            url,
+            title,
+            score: finalScore,
+            strategy: 'fuzzy',
+            normalizedTitle: isNormalizedString(normalizedTitle) ? normalizedTitle : undefined
+        };
+    }
+    
+    // Extract meaningful slug from URL for matching
+    private static extractSlugFromURL(url: string): string {
+        const slugMatch = url.match(/\/([^\/]+)\/?$/);
+        if (slugMatch) {
+            return slugMatch[1]
+                .replace(/-/g, ' ')  // Convert dashes to spaces
+                .replace(/_/g, ' ')  // Convert underscores to spaces
+                .trim();
+        }
+        return "";
+    }
+    
+    // Specialized matching for anime compound words (like "mahou tsukai" vs "mahoutsukai")
+    private static calculateCompoundWordScore(query: string, title: string): number {
+        const queryWords = query.toLowerCase().split(/\s+/);
+        const titleLower = title.toLowerCase();
+        
+        // Check if joining query words matches title
+        const joinedQuery = queryWords.join('');
+        if (titleLower.includes(joinedQuery)) {
+            return 85; // High score for compound word match
+        }
+        
+        // Check if splitting common compound words in title matches query
+        const expandedTitle = titleLower
+            .replace(/mahoutsukai/g, 'mahou tsukai')
+            .replace(/seireitsukai/g, 'seirei tsukai')
+            .replace(/kenshi/g, 'ken shi')
+            .replace(/yuusha/g, 'yuu sha');
+        
+        if (expandedTitle.includes(query.toLowerCase())) {
+            return 80; // High score for expanded compound match
+        }
+        
+        // Partial compound word matching
+        let partialMatches = 0;
+        for (const word of queryWords) {
+            if (titleLower.includes(word) && word.length > 2) {
+                partialMatches++;
+            }
+        }
+        
+        if (partialMatches > 0) {
+            return Math.min(70, partialMatches * 25); // Partial compound score
         }
         
         return 0;
     }
     
+    // Enhanced selection logic with better scoring and fallback strategies
     private static selectBestMatch(potentialLinks: ScoreMatch[]): string {
         if (potentialLinks.length === 0) {
             console.log("No anime page found");
             return "";
         }
         
-        // Sort by score (highest first)
-        potentialLinks.sort((a, b) => b.score - a.score);
+        // Sort by score (highest first), then by strategy preference
+        potentialLinks.sort((a, b) => {
+            if (a.score !== b.score) {
+                return (b.score as number) - (a.score as number);
+            }
+            // Prefer exact matches over fuzzy matches when scores are equal
+            const strategyOrder: Record<MatchStrategy, number> = {
+                'exact': 4,
+                'fuzzy': 3,
+                'normalized': 2,
+                'phonetic': 1
+            };
+            return (strategyOrder[b.strategy] || 0) - (strategyOrder[a.strategy] || 0);
+        });
         
         const bestMatch = potentialLinks[0];
-        console.log("Best match: " + bestMatch.title + " - " + bestMatch.url);
+        console.log(`Best match: ${bestMatch.title} - ${bestMatch.url} (Score: ${bestMatch.score}, Strategy: ${bestMatch.strategy})`);
+        
+        // Additional logging for debugging
+        if (potentialLinks.length > 1) {
+            console.log(`Alternative matches found (${potentialLinks.length - 1}):`);
+            potentialLinks.slice(1, 3).forEach((match, index) => {
+                console.log(`  ${index + 2}. ${match.title} - Score: ${match.score} (${match.strategy})`);
+            });
+        }
+        
         return bestMatch.url;
     }
 }
@@ -400,6 +785,176 @@ class HTTPClient {
     }
 }
 
+// Advanced fuzzy matching utilities with TypeScript generics and constraints
+class StringNormalizer {
+    // Normalize string using character mapping with branded types
+    static normalize(input: string): NormalizedString {
+        let result = input.toLowerCase().trim();
+        
+        // Apply character normalizations
+        for (const [from, to] of Object.entries(CHARACTER_NORMALIZATIONS)) {
+            result = result.replace(new RegExp(from, 'g'), to);
+        }
+        
+        // Apply anime-specific normalizations
+        for (const variation of ANIME_TITLE_VARIATIONS.patterns) {
+            result = result.replace(variation.from, variation.to);
+        }
+        
+        // Normalize whitespace
+        result = result.replace(/\s+/g, ' ').trim();
+        
+        return result as NormalizedString;
+    }
+    
+    // Advanced string cleaning for better matching
+    static clean(input: string): string {
+        return input
+            .replace(/[\[\](){}]/g, '') // Remove brackets
+            .replace(/[^\w\s\-]/g, '') // Remove special chars except hyphens
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+}
+
+// Levenshtein distance calculator with TypeScript constraints
+class LevenshteinCalculator implements DistanceCalculator {
+    calculate(a: string, b: string): StringDistance {
+        const matrix: number[][] = [];
+        const aLen = a.length;
+        const bLen = b.length;
+        
+        // Initialize matrix
+        for (let i = 0; i <= bLen; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= aLen; j++) {
+            matrix[0][j] = j;
+        }
+        
+        // Calculate distances
+        for (let i = 1; i <= bLen; i++) {
+            for (let j = 1; j <= aLen; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        
+        const distance = matrix[bLen][aLen];
+        return isValidStringDistance(distance) ? distance : 0 as StringDistance;
+    }
+    
+    // Calculate similarity score from distance
+    static calculateSimilarity(a: string, b: string, distance: StringDistance): number {
+        const maxLen = Math.max(a.length, b.length);
+        if (maxLen === 0) return 1;
+        return Math.max(0, (maxLen - distance) / maxLen);
+    }
+}
+
+// Advanced fuzzy string matcher with multiple strategies
+class FuzzyStringMatcher implements StringMatcher<FuzzyMatchConfig> {
+    private readonly distanceCalculator = new LevenshteinCalculator();
+    
+    match(query: string, target: string, config: FuzzyMatchConfig = FUZZY_MATCH_CONFIG): FuzzyScore {
+        const strategies = [
+            () => this.exactMatch(query, target, config.weights.exact),
+            () => this.fuzzyMatch(query, target, config),
+            () => this.normalizedMatch(query, target, config.weights.normalized),
+            () => this.phoneticMatch(query, target, config.weights.phonetic)
+        ];
+        
+        let bestScore = 0;
+        
+        for (const strategy of strategies) {
+            const score = strategy();
+            if (score > bestScore) {
+                bestScore = score;
+            }
+            // Early exit for exact matches
+            if (score === 100) break;
+        }
+        
+        return isFuzzyScore(bestScore) ? bestScore : 0 as FuzzyScore;
+    }
+    
+    normalize(input: string): NormalizedString {
+        return StringNormalizer.normalize(input);
+    }
+    
+    private exactMatch(query: string, target: string, weight: number): number {
+        const queryNorm = query.toLowerCase().trim();
+        const targetNorm = target.toLowerCase().trim();
+        
+        if (queryNorm === targetNorm) return weight;
+        if (targetNorm.includes(queryNorm)) return weight * 0.8;
+        if (queryNorm.includes(targetNorm)) return weight * 0.7;
+        
+        return 0;
+    }
+    
+    private fuzzyMatch(query: string, target: string, config: FuzzyMatchConfig): number {
+        const distance = this.distanceCalculator.calculate(query, target);
+        
+        if (distance > config.maxDistance) return 0;
+        
+        const similarity = LevenshteinCalculator.calculateSimilarity(query, target, distance);
+        
+        if (similarity < config.minSimilarity) return 0;
+        
+        return Math.round(similarity * config.weights.fuzzy);
+    }
+    
+    private normalizedMatch(query: string, target: string, weight: number): number {
+        const queryNorm = this.normalize(query);
+        const targetNorm = this.normalize(target);
+        
+        if (queryNorm === targetNorm) return weight;
+        if (targetNorm.includes(queryNorm)) return weight * 0.8;
+        if (queryNorm.includes(targetNorm)) return weight * 0.7;
+        
+        // Try with cleaned versions (removing special characters)
+        const queryClean = StringNormalizer.clean(queryNorm);
+        const targetClean = StringNormalizer.clean(targetNorm);
+        
+        if (queryClean === targetClean) return weight * 0.6;
+        if (targetClean.includes(queryClean)) return weight * 0.5;
+        
+        return 0;
+    }
+    
+    private phoneticMatch(query: string, target: string, weight: number): number {
+        // Simple phonetic matching for common anime title variations
+        const queryPhonetic = this.toPhonetic(query);
+        const targetPhonetic = this.toPhonetic(target);
+        
+        if (queryPhonetic === targetPhonetic) return weight;
+        if (targetPhonetic.includes(queryPhonetic)) return weight * 0.7;
+        
+        return 0;
+    }
+    
+    private toPhonetic(input: string): string {
+        return input
+            .toLowerCase()
+            .replace(/ou/g, 'o')     // Convert long vowels
+            .replace(/uu/g, 'u')
+            .replace(/ei/g, 'e')
+            .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+            .replace(/\s+/g, '')     // Remove spaces for phonetic comparison
+            .trim();
+    }
+}
+
+// Main provider class with performance optimizations
 class Provider {
     private readonly api = PROVIDER_CONFIG.API_BASE_URL;
     private readonly translator = new PortugueseTranslator();
@@ -416,34 +971,61 @@ class Provider {
 
     // Returns the search results using advanced error handling and type safety
     async search(opts: AnimeSearchOptions): Promise<AnimeTorrent[]> {
+        const startTime = Date.now();
         console.log("Searching for: " + opts.query);
         
-        // Use the translator instance with type safety
-        const convertedQuery = this.translator.parse(opts.query);
-        console.log("Converted query: " + convertedQuery);
-        
-        const searchURL = `${this.api}/?s=${encodeURIComponent(convertedQuery)}` as SearchURL;
-        console.log("Search URL: " + searchURL);
-        
-        // Use the new Result-based HTTP client
-        const fetchResult = await HTTPClient.fetchWithUserAgent(searchURL);
-        
-        if (!fetchResult.success) {
-            console.log(`Search failed: ${fetchResult.error.message} (Status: ${fetchResult.error.status})`);
+        try {
+            // Check cache first
+            const cacheKey = `search_${opts.query}`;
+            const cached = PerformanceCache.get<AnimeTorrent[]>(cacheKey);
+            if (cached) {
+                console.log("Cache hit for search: " + opts.query);
+                PerformanceCache.recordSearchTime(Date.now() - startTime);
+                return cached;
+            }
+            
+            // Use the translator instance with type safety
+            const convertedQuery = this.translator.parse(opts.query);
+            console.log("Converted query: " + convertedQuery);
+            
+            const searchURL = `${this.api}/?s=${encodeURIComponent(convertedQuery)}` as SearchURL;
+            console.log("Search URL: " + searchURL);
+            
+            // Use the new Result-based HTTP client
+            const fetchResult = await HTTPClient.fetchWithUserAgent(searchURL);
+            
+            if (!fetchResult.success) {
+                console.log(`Search failed: ${fetchResult.error.message} (Status: ${fetchResult.error.status})`);
+                PerformanceCache.recordSearchTime(Date.now() - startTime);
+                return [];
+            }
+
+            const animePageURL = AnimePageExtractor.extractPageURL(fetchResult.data, convertedQuery);
+            
+            if (!animePageURL) {
+                console.log("No anime page found for: " + opts.query);
+                PerformanceCache.recordSearchTime(Date.now() - startTime);
+                return [];
+            }
+
+            console.log("Found anime page: " + animePageURL);
+            
+            // Fetch torrents with improved error handling
+            const results = await this.fetchTorrentsFromAnimePage(animePageURL, opts.media);
+            
+            // Cache successful results
+            if (results.length > 0) {
+                PerformanceCache.set(cacheKey, results);
+            }
+            
+            PerformanceCache.recordSearchTime(Date.now() - startTime);
+            return results;
+            
+        } catch (error) {
+            console.log("Error in search: " + (error as Error).message);
+            PerformanceCache.recordSearchTime(Date.now() - startTime);
             return [];
         }
-
-        const animePageURL = AnimePageExtractor.extractPageURL(fetchResult.data, convertedQuery);
-        
-        if (!animePageURL) {
-            console.log("No anime page found for: " + opts.query);
-            return [];
-        }
-
-        console.log("Found anime page: " + animePageURL);
-        
-        // Fetch torrents with improved error handling
-        return this.fetchTorrentsFromAnimePage(animePageURL, opts.media);
     }
 
     // Returns the search results depending on the search options.
@@ -511,15 +1093,20 @@ class Provider {
     // Scrapes the torrent page to get the info hash.
     async getTorrentInfoHash(torrent: AnimeTorrent): Promise<string> {
         console.log("Getting info hash for torrent: " + (torrent.name || "Unknown"));
-        console.log("Torrent object: " + JSON.stringify(torrent, null, 2));
         
-        if (torrent.infoHash) {
+        // Validate torrent object
+        if (!torrent || typeof torrent !== 'object') {
+            console.log("Invalid torrent object provided");
+            return "";
+        }
+        
+        if (torrent.infoHash && torrent.infoHash.length === 40) {
             console.log("Info hash found: " + torrent.infoHash);
             return torrent.infoHash;
         }
         
         // Try to extract from magnet link if not already extracted
-        if (torrent.magnetLink) {
+        if (torrent.magnetLink && isValidMagnetLink(torrent.magnetLink)) {
             console.log("Trying to extract info hash from magnet link...");
             const infoHash = TorrentParser.extractInfoHash(torrent.magnetLink);
             if (infoHash) {
@@ -528,35 +1115,28 @@ class Provider {
             }
         }
         
-        // If this is a test/mock object, provide example
-        if (!torrent.magnetLink && !torrent.infoHash) {
-            const exampleHash = "1234567890abcdef1234567890abcdef12345678";
-            console.log("No real torrent data found, returning example hash: " + exampleHash);
-            return exampleHash;
-        }
-        
-        console.log("No info hash found for torrent: " + (torrent.name || "Unknown"));
+        // No valid torrent data found - return empty string instead of mock data
+        console.log("No valid info hash found for torrent: " + (torrent.name || "Unknown"));
         return "";
     }
 
     // Scrapes the torrent page to get the magnet link.
     async getTorrentMagnetLink(torrent: AnimeTorrent): Promise<string> {
         console.log("Getting magnet link for torrent: " + (torrent.name || "Unknown"));
-        console.log("Torrent object: " + JSON.stringify(torrent, null, 2));
         
-        if (torrent.magnetLink) {
+        // Validate torrent object
+        if (!torrent || typeof torrent !== 'object') {
+            console.log("Invalid torrent object provided");
+            return "";
+        }
+        
+        if (torrent.magnetLink && isValidMagnetLink(torrent.magnetLink)) {
             console.log("Magnet link found: " + torrent.magnetLink.substring(0, 100) + "...");
             return torrent.magnetLink;
         }
         
-        // If this is a test/mock object, provide example
-        if (!torrent.magnetLink && !torrent.name) {
-            const exampleMagnet = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678&dn=Example+Anime+Episode+01+1080p";
-            console.log("No real torrent data found, returning example magnet: " + exampleMagnet);
-            return exampleMagnet;
-        }
-        
-        console.log("No magnet link found for torrent: " + (torrent.name || "Unknown"));
+        // No valid magnet link found - return empty string instead of mock data
+        console.log("No valid magnet link found for torrent: " + (torrent.name || "Unknown"));
         return "";
     }
 
@@ -565,11 +1145,25 @@ class Provider {
         // DarkMahou doesn't have a "latest" page, return empty array
         return [];
     }
+    
+    // Performance monitoring method for debugging
+    getPerformanceMetrics(): ReadonlyPerformanceMetrics {
+        const metrics = PerformanceCache.getMetrics();
+        console.log("Performance Metrics:", {
+            searchTime: metrics.searchTime + "ms",
+            parseTime: metrics.parseTime + "ms", 
+            cacheHits: metrics.cacheHits,
+            cacheMisses: metrics.cacheMisses,
+            fuzzyMatchCount: metrics.fuzzyMatchCount,
+            cacheEfficiency: metrics.cacheHits / (metrics.cacheHits + metrics.cacheMisses) * 100 + "%"
+        });
+        return metrics;
+    }
 
 
 
     // Fetch torrents from anime page with improved error handling
-    private async fetchTorrentsFromAnimePage(pageURL: string, media: Media): Promise<AnimeTorrent[]> {
+    private async fetchTorrentsFromAnimePage(pageURL: string, _media: Media): Promise<AnimeTorrent[]> {
         console.log("Fetching torrents from: " + pageURL);
         
         const fetchResult = await HTTPClient.fetchWithUserAgent(pageURL);
@@ -582,84 +1176,66 @@ class Provider {
         return this.parseTorrentsFromHTML(fetchResult.data, pageURL);
     }
 
-    // Parse torrents from HTML using the original Go code logic
+    // Optimized torrent parsing using only regex (LoadDoc removed due to consistent failures)
     private parseTorrentsFromHTML(html: string, pageURL: string): AnimeTorrent[] {
-        try {
-            console.log("Parsing torrents from HTML...");
-            
-            // Try LoadDoc parsing first
-            const loadDocResults = this.parseWithLoadDoc(html, pageURL);
-            if (loadDocResults.length > 0) {
-                console.log("Found " + loadDocResults.length + " torrents using LoadDoc");
-                return loadDocResults;
-            }
-            
-            // Fallback to regex parsing
-            console.log("LoadDoc parsing failed or no results, using regex fallback...");
-            return this.parseWithRegexFallback(html, pageURL);
-            
-        } catch (error) {
-            console.log("Error parsing torrents: " + (error as Error).message);
-            return this.parseWithRegexFallback(html, pageURL);
-        }
-    }
-    
-    // Parse using LoadDoc (primary method)
-    private parseWithLoadDoc(html: string, pageURL: string): AnimeTorrent[] {
-        const results: AnimeTorrent[] = [];
+        const startTime = Date.now();
         
         try {
-            const $ = LoadDoc(html);
-            if (!$ || typeof $ !== 'function') {
-                return [];
+            console.log("Parsing torrents from HTML using optimized regex...");
+            
+            // Check cache first
+            const cacheKey = `torrents_${pageURL}`;
+            const cached = PerformanceCache.get<AnimeTorrent[]>(cacheKey);
+            if (cached) {
+                console.log("Cache hit for torrents parsing: " + pageURL);
+                PerformanceCache.recordParseTime(Date.now() - startTime);
+                return cached;
             }
             
-            console.log("Using LoadDoc for parsing...");
+            const results = this.parseWithOptimizedRegex(html, pageURL);
             
-            $("div.soraddl").each((_i: any, element: any) => {
-                const episodeTitle = $(element).find("h3").text().trim();
-                console.log("Processing block: " + episodeTitle);
-                
-                $(element).find("div.content table tbody tr").each((_j: any, row: any) => {
-                    const resolution = $(row).find("td.reso").text().trim();
-                    const magnetLink = $(row).find("td div.slink a").attr("href");
-                    
-                    if (magnetLink && magnetLink.startsWith("magnet:?")) {
-                        const cleanedResolution = resolution.replace(">>", "").trim();
-                        
-                        results.push(this.createAnimeTorrent(
-                            episodeTitle + " - " + cleanedResolution,
-                            magnetLink,
-                            pageURL,
-                            cleanedResolution,
-                            episodeTitle
-                        ));
-                    }
-                });
-            });
+            // Cache successful results
+            if (results.length > 0) {
+                PerformanceCache.set(cacheKey, results);
+            }
             
+            PerformanceCache.recordParseTime(Date.now() - startTime);
             return results;
             
         } catch (error) {
-            console.log("LoadDoc parsing error: " + (error as Error).message);
+            console.log("Error parsing torrents: " + (error as Error).message);
+            PerformanceCache.recordParseTime(Date.now() - startTime);
             return [];
         }
     }
+    
 
-    // Fallback parsing using regex (like we discovered in testing)
-    private parseWithRegexFallback(html: string, pageURL: string): AnimeTorrent[] {
+    // Optimized regex parsing (primary method, LoadDoc removed)
+    private parseWithOptimizedRegex(html: string, pageURL: string): AnimeTorrent[] {
         const results: AnimeTorrent[] = [];
         
         try {
-            console.log("Using regex fallback to find magnet links...");
+            console.log("Using optimized regex to find magnet links...");
             
             const magnetMatches = html.match(REGEX_PATTERNS.MAGNET_LINK);
             
             if (magnetMatches && magnetMatches.length > 0) {
                 console.log("Found " + magnetMatches.length + " magnet links in page");
                 
-                magnetMatches.forEach((magnetLink, index) => {
-                    const torrentName = this.extractTorrentNameFromMagnet(magnetLink, index + 1);
+                // Process magnet links with deduplication
+                const seenInfoHashes = new Set<string>();
+                
+                for (let i = 0; i < magnetMatches.length; i++) {
+                    const magnetLink = magnetMatches[i];
+                    
+                    // Skip duplicates based on info hash
+                    const infoHash = TorrentParser.extractInfoHash(magnetLink);
+                    if (infoHash && seenInfoHashes.has(infoHash)) {
+                        continue;
+                    }
+                    if (infoHash) seenInfoHashes.add(infoHash);
+                    
+                    const torrentName = this.extractTorrentNameFromMagnet(magnetLink, i + 1);
                     
                     results.push(this.createAnimeTorrent(
                         torrentName,
@@ -668,14 +1244,14 @@ class Provider {
                         TorrentParser.parseResolution(torrentName),
                         ""
                     ));
-                });
+                }
             }
             
-            console.log("Regex fallback found " + results.length + " torrents");
+            console.log("Optimized regex parsing found " + results.length + " unique torrents");
             return results;
             
         } catch (error) {
-            console.log("Error in regex fallback: " + (error as Error).message);
+            console.log("Error in optimized regex parsing: " + (error as Error).message);
             return [];
         }
     }
