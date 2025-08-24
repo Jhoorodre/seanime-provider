@@ -1,0 +1,11 @@
+{
+    "id": "animesroll-seanime",
+    "name": "AnimesROLL",
+    "description": "Brazilian Portuguese anime streaming from anroll.net",
+    "manifestURI": "https://raw.githubusercontent.com/your-repo/extensions/main/animesroll-seanime.json",
+    "version": "1.0.0",
+    "author": "Seanime Community",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt-BR",
+{
