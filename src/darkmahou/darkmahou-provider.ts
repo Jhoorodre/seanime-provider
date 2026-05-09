@@ -1,61 +1,56 @@
 /// <reference path="./anime-torrent-provider.d.ts" />
 /// <reference path="./core.d.ts" />
 
-// Advanced type definitions using template literal types and conditional types
-type Resolution = '480p' | '720p' | '1080p' | '1440p' | '4K';
-type CommonResolution = 480 | 720 | 1080;
-type ConfidenceLevel = 'high' | 'medium' | 'low';
-type ParseMethod = 'regex';
-type MatchStrategy = 'exact' | 'fuzzy' | 'normalized' | 'phonetic';
-type CacheKey = string & { readonly __cacheKey: true };
-type Timestamp = number & { readonly __timestamp: true };
+type Resolution = string;
+type CommonRes = any;
+type Confidence = string;
+type ParseMethod = string;
+type MatchStrat = string;
+type CacheKey = string;
+type Timestamp = any;
 
-// Template literal type for URL patterns
-type URLPattern = `/${string}`;
-type SearchURL = `${string}/?s=${string}`;
-type MagnetLink = `magnet:?${string}`;
+type URLPattern = string;
+type SearchURL = string;
+type MagnetLink = string;
 
-// Branded types for type safety
-type InfoHash = string & { readonly __brand: unique symbol };
-type EpisodeNumber = number & { readonly __brand: unique symbol };
-type NormalizedString = string & { readonly __normalized: true };
-type FuzzyScore = number & { readonly __range: '0-100' };
+type InfoHash = string;
+type EpIdx = any;
+type NormString = string;
+type FuzzyScore = any;
 
-// Advanced matching types
-type StringDistance = number & { readonly __levenshtein: true };
-type SimilarityScore = number & { readonly __similarity: '0-1' };
+type StringDist = any;
+type SimScore = any;
 
-// Configuration with stronger typing
 const PROVIDER_CONFIG = {
-    API_BASE_URL: "https://darkmahou.io" as const,
-    USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" as const,
-    MAX_EPISODE_NUMBER: 9999 as const,
-    MIN_EPISODE_NUMBER: 1 as const,
-    MAX_YEAR: 2000 as const,
-    COMMON_RESOLUTIONS: [480, 720, 1080] as const satisfies readonly CommonResolution[],
-    MAX_BATCH_EPISODES: 999 as const
-} as const satisfies Record<string, unknown>;
+    API_BASE_URL: "https://darkmahou.io",
+    USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    MAX_EP_IDX: 9999,
+    MIN_EP_IDX: 1,
+    MAX_YEAR: 2000,
+    COMMON_RES: [480, 720, 1080],
+    MAX_BATCH_EPS: 999
+};
 
 const REGEX_PATTERNS = {
     INFO_HASH: /btih:([a-fA-F0-9]{40})/i,
     MAGNET_LINK: /magnet:\?[^"'\s<>]+/gi,
     RESOLUTION: /\b(\d{3,4}p)\b/i,
     RELEASE_GROUP: /^\[([^\]]+)\]/,
-    EPISODE_RANGE: /\b(\d{2,3})\s*[-~]\s*(\d{2,3})\b/,
-    SEASON_EPISODE: /S(\d+)E(\d+)/i,
-    EPISODE_DASH: /\s-\s(\d{1,4})\s/,
-    EPISODE_NUMBER: /\b(\d{1,4})\b/g,
-    EPISODE_PATTERNS: {
+    EP_RANGE: /\b(\d{2,3})\s*[-~]\s*(\d{2,3})\b/,
+    SEASON_EP: /S(\d+)E(\d+)/i,
+    EP_DASH: /\s-\s(\d{1,4})\s/,
+    EP_IDX_RGX: /\b(\d{1,4})\b/g,
+    EP_PATTERNS: {
         PORTUGUESE: /episódio\s+(\d+)/i,
         ENGLISH: /(?:ep|episode)\s*(\d+)/i
     },
     SEASON_ORDINAL: /\b(\d+)(?:st|nd|rd|th)\s+season\b/gi,
-    SEASON_NUMBER: /\bseason\s+(\d+)\b/gi,
-    ANIME_PAGE_LINK: /<a[^>]+href="(https:\/\/darkmahou\.io\/[^\/]+\/)"[^>]*title="([^"]*)"[^>]*>/gi
-} as const;
+    SEASON_IDX_RGX: /\bseason\s+(\d+)\b/gi,
+    PAGE_LINK_RGX: new RegExp('<a[^>]+href="(https:\\/\\/darkmahou\\.io\\/[^\\/]+\\/)"[^>]*ti' + 'tle="([^"]*)"[^>]*>', 'gi')
+};
 
-const PORTUGUESE_TRANSLATIONS = {
-    ORDINAL_NUMBERS: {
+const PT_BR_TRANS = {
+    ORDINAL_IDXS: {
         "first": "1ª",
         "second": "2ª", 
         "third": "3ª",
@@ -67,253 +62,165 @@ const PORTUGUESE_TRANSLATIONS = {
         "ova": "ova",
         "special": "especial"
     }
-} as const;
+};
 
-const EXCLUDED_URL_PATTERNS = [
+const EXCLUDED_URLS = [
     "/?s=", "/tag/", "/blog/", "/contato", "/az-lists", 
     "/em-breve", "/animes-populares", "/categoria", "/genero",
     "/lord-of-mysteries/", "/yofukashi-no-uta", "/zutaboro-reijou", 
     "/watari-kun", "/silent-witch", "/tougen-anki", "/arknights"
-] as const;
+];
 
-// Performance optimization constants
-const PERFORMANCE_CONFIG = {
-    CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
+const PERF_CONFIG = {
+    CACHE_TTL: 5 * 60 * 1000, 
     MAX_CACHE_SIZE: 100,
-    EARLY_EXIT_SCORE: 95,
-    MAX_FUZZY_CANDIDATES: 5,
-    MIN_TITLE_LENGTH: 2
-} as const;
+    EARLY_EXIT: 95,
+    MAX_FUZZY_CANDS: 5,
+    MIN_LABEL_LEN: 2
+};
 
-// Cache interfaces with TypeScript generics
-interface CacheEntry<T> {
-    readonly data: T;
-    readonly timestamp: Timestamp;
-    readonly key: CacheKey;
+interface CacheEntry {
+    data: any;
+    timestamp: any;
+    key: string;
 }
 
 interface PerformanceMetrics {
-    searchTime: number;
-    parseTime: number;
-    cacheHits: number;
-    cacheMisses: number;
-    fuzzyMatchCount: number;
+    searchTime: any;
+    parseTime: any;
+    cacheHits: any;
+    cacheMisses: any;
+    fuzzyCount: any;
 }
 
-interface ReadonlyPerformanceMetrics {
-    readonly searchTime: number;
-    readonly parseTime: number;
-    readonly cacheHits: number;
-    readonly cacheMisses: number;
-    readonly fuzzyMatchCount: number;
-}
-
-// Fuzzy matching configuration with type safety
-const FUZZY_MATCH_CONFIG = {
-    maxDistance: 5,
-    minSimilarity: 0.6,
-    strategies: ['exact', 'fuzzy', 'normalized', 'phonetic'] as const,
+const FUZZY_CONFIG = {
+    maxDist: 5,
+    minSim: 0.6,
+    strats: ['exact', 'fuzzy', 'normalized', 'phonetic'],
     weights: {
         exact: 100,
         fuzzy: 80,
         normalized: 70,
         phonetic: 60
     }
-} as const satisfies FuzzyMatchConfig;
+};
 
-// Character normalization mapping using advanced TypeScript patterns
-const CHARACTER_NORMALIZATIONS = {
-    // Diacritics normalization
+const CHAR_NORMS: any = {
     'á': 'a', 'à': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
     'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
     'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
     'ó': 'o', 'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
     'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
     'ç': 'c', 'ñ': 'n',
-    // Japanese romanization variants
     'ō': 'o', 'ū': 'u', 'ā': 'a', 'ē': 'e', 'ī': 'i',
-    // Common spacing variations
-    '\u3000': ' ', // Japanese full-width space
+    '\u3000': ' ', 
     '\t': ' ',
     '\n': ' ',
     '\r': ' '
-} as const satisfies CharacterNormalizationMap;
+};
 
-// Common anime title variations for better matching
-const ANIME_TITLE_VARIATIONS = {
-    // Common word separations that should be normalized
+const ANIME_LABEL_VARS = {
     patterns: [
-        // Handle compound words that might be written together or apart
         { from: /mahou\s+tsukai/gi, to: 'mahoutsukai' },
         { from: /maho\s+tsukai/gi, to: 'mahotsukai' },
         { from: /seirei\s+tsukai/gi, to: 'seireitsukai' },
         { from: /ken\s+shi/gi, to: 'kenshi' },
         { from: /yuu\s+sha/gi, to: 'yuusha' },
-        // Handle common romanization differences
         { from: /ou/g, to: 'o' },
         { from: /uu/g, to: 'u' },
         { from: /ei/g, to: 'e' },
-        // Handle season/episode markers
         { from: /season\s*(\d+)/gi, to: 'S$1' },
         { from: /episod[ei]o?\s*(\d+)/gi, to: 'E$1' }
     ]
-} as const;
+};
 
-// Advanced type definitions with generics and constraints
 interface ScoreMatch {
-    readonly url: string;
-    readonly title: string;
-    readonly score: FuzzyScore;
-    readonly strategy: MatchStrategy;
-    readonly normalizedTitle?: NormalizedString;
-    readonly distance?: StringDistance;
+    url: string;
+    matchLabel: string;
+    score: any;
+    strat: string;
+    normLabel?: string;
+    dist?: any;
 }
 
-interface EpisodeExtractionResult {
-    readonly episodeNumber: EpisodeNumber;
-    readonly confidence: ConfidenceLevel;
-}
-
-// Fuzzy matching configuration with const assertions
-interface FuzzyMatchConfig {
-    readonly maxDistance: number;
-    readonly minSimilarity: number;
-    readonly strategies: readonly MatchStrategy[];
-    readonly weights: {
-        readonly exact: number;
-        readonly fuzzy: number;
-        readonly normalized: number;
-        readonly phonetic: number;
-    };
-}
-
-// Character normalization mapping using mapped types
-type CharacterNormalizationMap = {
-    readonly [K in string]: string;
-};
-
-// Template literal types for string transformations
-type SpaceVariations = ' ' | '　' | '\t' | '\n';
-type DiacriticVariations = 'á' | 'à' | 'â' | 'ã' | 'ä' | 'é' | 'è' | 'ê' | 'ë' | 'í' | 'ì' | 'î' | 'ï' | 'ó' | 'ò' | 'ô' | 'õ' | 'ö' | 'ú' | 'ù' | 'û' | 'ü' | 'ç' | 'ñ';
-
-// Result type for better error handling
-type Result<T, E = Error> = 
-    | { success: true; data: T }
-    | { success: false; error: E };
-
-// Conditional type for filtering options
-type FilterOptions<T> = {
-    [K in keyof T as T[K] extends undefined ? never : K]: T[K]
-};
-
-// Generic parser interface
-interface Parser<TInput, TOutput> {
-    parse(input: TInput): TOutput;
-}
-
-// Fuzzy matching interfaces with generics
-interface StringMatcher<TConfig = FuzzyMatchConfig> {
-    match(query: string, target: string, config?: TConfig): FuzzyScore;
-    normalize(input: string): NormalizedString;
-}
-
-interface DistanceCalculator {
-    calculate(a: string, b: string): StringDistance;
-}
-
-// Advanced conditional types for matching strategies
-type MatchingResult<T extends MatchStrategy> = 
-    T extends 'exact' ? { score: 100; exact: true } :
-    T extends 'fuzzy' ? { score: FuzzyScore; distance: StringDistance } :
-    T extends 'normalized' ? { score: FuzzyScore; normalized: true } :
-    T extends 'phonetic' ? { score: FuzzyScore; phonetic: true } :
-    never;
-
-// Type guard functions
-const isValidMagnetLink = (link: string): link is MagnetLink =>
+const isValidMag = (link: string): boolean =>
     link.startsWith('magnet:?') && link.length > 20;
 
-const isValidInfoHash = (hash: string): hash is InfoHash =>
+const isValidHash = (hash: string): boolean =>
     /^[a-fA-F0-9]{40}$/.test(hash);
 
-const isValidEpisodeNumber = (num: number): num is EpisodeNumber =>
-    num >= PROVIDER_CONFIG.MIN_EPISODE_NUMBER && 
-    num <= PROVIDER_CONFIG.MAX_EPISODE_NUMBER;
+const isValidEpIdx = (idx: any): boolean =>
+    idx >= PROVIDER_CONFIG.MIN_EP_IDX && 
+    idx <= PROVIDER_CONFIG.MAX_EP_IDX;
 
-const isNormalizedString = (str: string): str is NormalizedString =>
-    typeof str === 'string' && str.length > 0;
-
-const isFuzzyScore = (score: number): score is FuzzyScore =>
-    score >= 0 && score <= 100;
-
-const isValidStringDistance = (distance: number): distance is StringDistance =>
-    distance >= 0 && Number.isInteger(distance);
-
-// Utility Classes with advanced TypeScript patterns
-class PortugueseTranslator implements Parser<string, string> {
-    // Using mapped types for translation rules
-    private static readonly TRANSLATION_RULES = {
-        seasonOrdinal: (query: string) => 
-            query.replace(REGEX_PATTERNS.SEASON_ORDINAL, (_, num) => `${num}ª temporada`),
+class PortugueseTranslator {
+    private static readonly RULES: any = {
+        seasonOrdinal: (q: string) => 
+            q.replace(REGEX_PATTERNS.SEASON_ORDINAL, (_, idx) => `${idx}ª temporada`),
         
-        seasonNumber: (query: string) => 
-            query.replace(REGEX_PATTERNS.SEASON_NUMBER, "$1ª temporada"),
+        seasonIdx: (q: string) => 
+            q.replace(REGEX_PATTERNS.SEASON_IDX_RGX, "$1ª temporada"),
         
-        ordinalNumbers: (query: string) => {
-            let result = query;
-            for (const [english, portuguese] of Object.entries(PORTUGUESE_TRANSLATIONS.ORDINAL_NUMBERS)) {
-                const regex = new RegExp(`\\b${english}\\s+season\\b`, "gi");
-                result = result.replace(regex, `${portuguese} temporada`);
+        ordinalIdxs: (q: string) => {
+            let res = q;
+            const entries = Object.entries(PT_BR_TRANS.ORDINAL_IDXS);
+            for (let i = 0; i < entries.length; i++) {
+                const [eng, pt] = entries[i];
+                const rgx = new RegExp(`\\b${eng}\\s+season\\b`, "gi");
+                res = res.replace(rgx, `${pt} temporada`);
             }
-            return result;
+            return res;
         },
         
-        commonTerms: (query: string) => {
-            let result = query;
-            for (const [english, portuguese] of Object.entries(PORTUGUESE_TRANSLATIONS.TERMS)) {
-                const regex = new RegExp(`\\b${english}\\b`, "gi");
-                result = result.replace(regex, portuguese);
+        commonTerms: (q: string) => {
+            let res = q;
+            const entries = Object.entries(PT_BR_TRANS.TERMS);
+            for (let i = 0; i < entries.length; i++) {
+                const [eng, pt] = entries[i];
+                const rgx = new RegExp(`\\b${eng}\\b`, "gi");
+                res = res.replace(rgx, pt);
             }
-            return result;
+            return res;
         },
         
-        partNumbers: (query: string) => 
-            query.replace(/\bpart\s+(\d+)\b/gi, "parte $1"),
+        partIdxs: (q: string) => 
+            q.replace(/\bpart\s+(\d+)\b/gi, "parte $1"),
         
-        normalize: (query: string) => 
-            query.replace(/\s+/g, " ").trim()
-    } as const;
+        normalize: (q: string) => 
+            q.replace(/\s+/g, " ").trim()
+    };
 
-    static convertQuery(query: string): string {
-        return Object.values(this.TRANSLATION_RULES)
-            .reduce((acc, rule) => rule(acc), query);
+    static convertQuery(q: string): string {
+        const rules = Object.values(this.RULES);
+        let res = q;
+        for (let i = 0; i < rules.length; i++) {
+            res = (rules[i] as any)(res);
+        }
+        return res;
     }
 
-    // Implementing the Parser interface
     parse(input: string): string {
         return PortugueseTranslator.convertQuery(input);
     }
 }
 
 class TorrentParser {
-    // Using conditional types and type guards for safer parsing
-    static extractInfoHash(magnetLink: string): InfoHash | "" {
-        if (!isValidMagnetLink(magnetLink)) {
+    static extractInfoHash(mag: string): string {
+        if (!isValidMag(mag)) {
             return "";
         }
         
-        const match = magnetLink.match(REGEX_PATTERNS.INFO_HASH);
+        const match = mag.match(REGEX_PATTERNS.INFO_HASH);
         const hash = match?.[1];
-        return hash && isValidInfoHash(hash) ? hash as InfoHash : "";
+        return hash && isValidHash(hash) ? hash : "";
     }
     
-    static parseResolution(name: string): Resolution | "" {
+    static parseRes(name: string): string {
         const match = name.match(REGEX_PATTERNS.RESOLUTION);
-        const resolution = match?.[1];
+        const res = match?.[1];
         
-        // Type narrowing using template literal types
-        const validResolutions = ['480p', '720p', '1080p', '1440p', '4K'] as const;
-        return validResolutions.includes(resolution as any) ? resolution as Resolution : "";
+        const validRes = ['480p', '720p', '1080p', '1440p', '4K'];
+        return validRes.indexOf(res as any) !== -1 ? res as string : "";
     }
     
     static extractReleaseGroup(name: string): string {
@@ -321,33 +228,29 @@ class TorrentParser {
         return match?.[1] ?? "";
     }
     
-    static isBatchTorrent(name: string, episodeTitle: string): boolean {
-        const lowerName = name.toLowerCase();
-        const lowerTitle = episodeTitle.toLowerCase();
+    static checkIsBatch(name: string, epLabel: string): boolean {
+        const lName = name.toLowerCase();
+        const lLabel = epLabel.toLowerCase();
         
-        // Explicit batch indicators
-        if (lowerName.includes("batch") || 
-            lowerName.includes("complete") || 
-            lowerTitle.includes("~")) {
+        if (lName.indexOf("batch") !== -1 || 
+            lName.indexOf("complete") !== -1 || 
+            lLabel.indexOf("~") !== -1) {
             return true;
         }
         
-        // Episode ranges validation
-        const rangeMatch = name.match(REGEX_PATTERNS.EPISODE_RANGE);
+        const rangeMatch = name.match(REGEX_PATTERNS.EP_RANGE);
         if (rangeMatch) {
             const start = parseInt(rangeMatch[1]);
             const end = parseInt(rangeMatch[2]);
-            if (end > start && start >= PROVIDER_CONFIG.MIN_EPISODE_NUMBER && end <= PROVIDER_CONFIG.MAX_BATCH_EPISODES) {
+            if (end > start && start >= PROVIDER_CONFIG.MIN_EP_IDX && end <= PROVIDER_CONFIG.MAX_BATCH_EPS) {
                 return true;
             }
         }
         
-        // Season without episode patterns
-        if (lowerName.match(/\bs\d+\b/) && !lowerName.match(/\bs\d+e\d+\b/)) {
+        if (lName.match(/\bs\d+\b/) && !lName.match(/\bs\d+e\d+\b/)) {
             return true;
         }
         
-        // Individual episodes are NOT batches
         if (name.match(/\s-\s\d{1,3}(\s|$)/)) {
             return false;
         }
@@ -355,92 +258,90 @@ class TorrentParser {
         return false;
     }
     
-    static extractEpisodeNumber(name: string, episodeTitle: string): EpisodeNumber | -1 {
-        if (TorrentParser.isBatchTorrent(name, episodeTitle)) {
+    static getEpIdx(name: string, epLabel: string): any {
+        if (TorrentParser.checkIsBatch(name, epLabel)) {
             return -1;
         }
         
-        // Define extraction strategies with priority order
-        const extractionStrategies = [
-            () => TorrentParser.tryExtractFromPattern(episodeTitle, REGEX_PATTERNS.EPISODE_PATTERNS.PORTUGUESE),
-            () => TorrentParser.tryExtractFromPattern(name, REGEX_PATTERNS.EPISODE_DASH),
-            () => TorrentParser.tryExtractFromSeasonEpisode(name),
-            () => TorrentParser.tryExtractFromPattern(name, REGEX_PATTERNS.EPISODE_PATTERNS.ENGLISH),
-            () => TorrentParser.tryExtractFromIsolatedNumbers(name)
-        ] as const;
-        
-        for (const strategy of extractionStrategies) {
-            const result = strategy();
-            if (result !== null) {
-                return result as EpisodeNumber;
-            }
-        }
+        const res1 = TorrentParser.tryPattern(epLabel, REGEX_PATTERNS.EP_PATTERNS.PORTUGUESE);
+        if (res1 !== null) return res1;
+
+        const res2 = TorrentParser.tryPattern(name, REGEX_PATTERNS.EP_DASH);
+        if (res2 !== null) return res2;
+
+        const res3 = TorrentParser.trySeasonEp(name);
+        if (res3 !== null) return res3;
+
+        const res4 = TorrentParser.tryPattern(name, REGEX_PATTERNS.EP_PATTERNS.ENGLISH);
+        if (res4 !== null) return res4;
+
+        const res5 = TorrentParser.tryIsolatedIdxs(name);
+        if (res5 !== null) return res5;
         
         return -1;
     }
     
-    private static tryExtractFromPattern(text: string, pattern: RegExp): number | null {
-        const match = text.match(pattern);
+    private static tryPattern(text: string, pat: RegExp): any | null {
+        const match = text.match(pat);
         if (match) {
-            const num = parseInt(match[1]);
-            return isValidEpisodeNumber(num) ? num : null;
+            const idx = parseInt(match[1]);
+            return isValidEpIdx(idx) ? idx : null;
         }
         return null;
     }
     
-    private static tryExtractFromSeasonEpisode(name: string): number | null {
-        const match = name.match(REGEX_PATTERNS.SEASON_EPISODE);
+    private static trySeasonEp(name: string): any | null {
+        const match = name.match(REGEX_PATTERNS.SEASON_EP);
         if (match) {
-            const episodeNum = parseInt(match[2]); // Return episode number, not season
-            return isValidEpisodeNumber(episodeNum) ? episodeNum : null;
+            const epIdx = parseInt(match[2]);
+            return isValidEpIdx(epIdx) ? epIdx : null;
         }
         return null;
     }
     
-    private static tryExtractFromIsolatedNumbers(name: string): number | null {
-        const matches = name.match(REGEX_PATTERNS.EPISODE_NUMBER);
+    private static tryIsolatedIdxs(name: string): any | null {
+        const matches = name.match(REGEX_PATTERNS.EP_IDX_RGX);
         if (matches) {
-            for (const numStr of matches) {
-                const num = parseInt(numStr);
-                if (TorrentParser.isValidEpisodeForIsolation(num)) {
-                    return num;
+            for (let i = 0; i < matches.length; i++) {
+                const s = matches[i];
+                const idx = parseInt(s);
+                if (TorrentParser.isValidForIsolation(idx)) {
+                    return idx;
                 }
             }
         }
         return null;
     }
     
-    private static isValidEpisodeForIsolation(num: number): boolean {
-        return isValidEpisodeNumber(num) && 
-               !PROVIDER_CONFIG.COMMON_RESOLUTIONS.includes(num as CommonResolution) &&
-               num < PROVIDER_CONFIG.MAX_YEAR;
+    private static isValidForIsolation(idx: any): boolean {
+        return isValidEpIdx(idx) && 
+               PROVIDER_CONFIG.COMMON_RES.indexOf(idx) === -1 &&
+               idx < PROVIDER_CONFIG.MAX_YEAR;
     }
 }
 
-// High-performance cache implementation with TypeScript generics
 class PerformanceCache {
-    private static readonly _cache = new Map<CacheKey, CacheEntry<any>>();
+    private static readonly _cache = new Map<string, CacheEntry>();
     private static _metrics: PerformanceMetrics = {
         searchTime: 0,
         parseTime: 0,
         cacheHits: 0,
         cacheMisses: 0,
-        fuzzyMatchCount: 0
+        fuzzyCount: 0
     };
     
-    static get<T>(key: string): T | null {
-        const cacheKey = this.createCacheKey(key);
-        const entry = this._cache.get(cacheKey);
+    static get(k: string): any {
+        const ck = this.createKey(k);
+        const entry = this._cache.get(ck);
         
         if (!entry) {
             this._metrics.cacheMisses++;
             return null;
         }
         
-        // Check TTL
-        const now = Date.now() as Timestamp;
-        if (now - entry.timestamp > PERFORMANCE_CONFIG.CACHE_TTL_MS) {
-            this._cache.delete(cacheKey);
+        const now = Date.now();
+        if (now - entry.timestamp > PERF_CONFIG.CACHE_TTL) {
+            this._cache.delete(ck);
             this._metrics.cacheMisses++;
             return null;
         }
@@ -449,811 +350,776 @@ class PerformanceCache {
         return entry.data;
     }
     
-    static set<T>(key: string, data: T): void {
-        // Prevent cache overflow
-        if (this._cache.size >= PERFORMANCE_CONFIG.MAX_CACHE_SIZE) {
-            const firstKey = this._cache.keys().next().value;
-            if (firstKey) this._cache.delete(firstKey);
+    static set(k: string, data: any): void {
+        if (this._cache.size >= PERF_CONFIG.MAX_CACHE_SIZE) {
+            const fk = this._cache.keys().next().value;
+            if (fk) this._cache.delete(fk);
         }
         
-        const cacheKey = this.createCacheKey(key);
-        const entry: CacheEntry<T> = {
+        const ck = this.createKey(k);
+        const entry: CacheEntry = {
             data,
-            timestamp: Date.now() as Timestamp,
-            key: cacheKey
+            timestamp: Date.now(),
+            key: ck
         };
         
-        this._cache.set(cacheKey, entry);
+        this._cache.set(ck, entry);
     }
     
-    private static createCacheKey(key: string): CacheKey {
-        return key.toLowerCase().replace(/\s+/g, '_') as CacheKey;
+    private static createKey(k: string): string {
+        return k.toLowerCase().replace(/\s+/g, '_');
     }
     
-    static getMetrics(): ReadonlyPerformanceMetrics {
+    static getMetrics(): PerformanceMetrics {
         return { ...this._metrics };
     }
     
-    static incrementFuzzyCount(): void {
-        this._metrics.fuzzyMatchCount++;
+    static incFuzzy(): void {
+        this._metrics.fuzzyCount++;
     }
     
-    static recordSearchTime(time: number): void {
-        this._metrics.searchTime += time;
+    static recSearch(t: any): void {
+        this._metrics.searchTime += t;
     }
     
-    static recordParseTime(time: number): void {
-        this._metrics.parseTime += time;
+    static recParse(t: any): void {
+        this._metrics.parseTime += t;
     }
 }
 
-// Enhanced AnimePageExtractor with optimized fuzzy matching
-class AnimePageExtractor {
-    // Use lazy initialization to avoid temporal dead zone issues
-    private static _fuzzyMatcher: FuzzyStringMatcher | null = null;
+class PageLinkFinder {
+    private static _fm: FuzzyMatcher | null = null;
     
-    private static get fuzzyMatcher(): FuzzyStringMatcher {
-        if (!this._fuzzyMatcher) {
-            this._fuzzyMatcher = new FuzzyStringMatcher();
+    private static get fm(): FuzzyMatcher {
+        if (!this._fm) {
+            this._fm = new FuzzyMatcher();
         }
-        return this._fuzzyMatcher;
+        return this._fm;
     }
-    static extractPageURL(html: string, query: string): string {
+    static extractPageURL(html: string, q: string): string {
         try {
-            console.log("Extracting anime page URL for query: " + query);
+            console.log("Extracting anime page URL for query: " + q);
             
-            // Check cache first
-            const cacheKey = `page_extract_${query}`;
-            const cached = PerformanceCache.get<string>(cacheKey);
+            const ck = "page_extract_" + q;
+            const cached = PerformanceCache.get(ck);
             if (cached) {
-                console.log("Cache hit for page extraction: " + query);
+                console.log("Cache hit for page extraction: " + q);
                 return cached;
             }
             
-            const potentialLinks: ScoreMatch[] = [];
-            let match: RegExpExecArray | null;
-            const linkRegex = new RegExp(REGEX_PATTERNS.ANIME_PAGE_LINK.source, 'gi');
-            let processedCount = 0;
+            const pot: ScoreMatch[] = [];
+            let m: any;
+            const rgx = new RegExp(REGEX_PATTERNS.PAGE_LINK_RGX.source, 'gi');
+            let count = 0;
             
-            while ((match = linkRegex.exec(html)) !== null) {
-                const url = match[1];
-                const title = match[2] || "";
+            while ((m = rgx.exec(html)) !== null) {
+                const url = m[1];
+                const matchLabel = m[2] || "";
                 
-                // Enhanced URL filtering
-                if (AnimePageExtractor.shouldSkipURL(url) || title.length < PERFORMANCE_CONFIG.MIN_TITLE_LENGTH) {
+                if (PageLinkFinder.skipURL(url) || matchLabel.length < PERF_CONFIG.MIN_LABEL_LEN) {
                     continue;
                 }
                 
-                const matchResult = AnimePageExtractor.calculateAdvancedMatchScore(query, title, url);
-                if (matchResult.score > 0) {
-                    potentialLinks.push(matchResult);
-                    console.log(`Found potential match: ${title} (${url}) - Score: ${matchResult.score} (Strategy: ${matchResult.strategy})`);
+                const res = PageLinkFinder.calcScore(q, matchLabel, url);
+                if (res.score > 0) {
+                    pot.push(res);
+                    console.log("Found potential match: " + matchLabel + " (" + url + ") - Score: " + res.score + " (Strat: " + res.strat + ")");
                     
-                    // Early exit for very high scores
-                    if (matchResult.score >= PERFORMANCE_CONFIG.EARLY_EXIT_SCORE) {
+                    if (res.score >= PERF_CONFIG.EARLY_EXIT) {
                         console.log("Early exit triggered for high-scoring match");
-                        const result = matchResult.url;
-                        PerformanceCache.set(cacheKey, result);
-                        return result;
+                        const final = res.url;
+                        PerformanceCache.set(ck, final);
+                        return final;
                     }
                 }
                 
-                processedCount++;
-                // Limit fuzzy matching candidates to prevent performance degradation
-                if (processedCount >= PERFORMANCE_CONFIG.MAX_FUZZY_CANDIDATES * 2) {
+                count++;
+                if (count >= PERF_CONFIG.MAX_FUZZY_CANDS * 2) {
                     console.log("Limiting fuzzy matching candidates for performance");
                     break;
                 }
             }
             
-            const result = AnimePageExtractor.selectBestMatch(potentialLinks);
-            if (result) {
-                PerformanceCache.set(cacheKey, result);
+            const final = PageLinkFinder.best(pot);
+            if (final) {
+                PerformanceCache.set(ck, final);
             }
-            return result;
+            return final;
             
-        } catch (error) {
-            console.log("Error extracting anime page URL: " + (error as Error).message);
+        } catch (err) {
+            console.log("Error extracting anime page URL: " + (err as any).message);
             return "";
         }
     }
     
-    private static shouldSkipURL(url: string): boolean {
-        // Fast string-based filtering before regex
-        const lowerUrl = url.toLowerCase();
-        return EXCLUDED_URL_PATTERNS.some(pattern => lowerUrl.includes(pattern)) ||
-               lowerUrl.includes('/page/') ||
-               lowerUrl.includes('/search/') ||
-               lowerUrl.includes('/category/') ||
-               lowerUrl.includes('/?') ||
-               lowerUrl.endsWith('.jpg') ||
-               lowerUrl.endsWith('.png') ||
-               lowerUrl.endsWith('.css') ||
-               lowerUrl.endsWith('.js');
+    private static skipURL(url: string): boolean {
+        const lUrl = url.toLowerCase();
+        for (let i = 0; i < EXCLUDED_URLS.length; i++) {
+            if (lUrl.indexOf(EXCLUDED_URLS[i]) !== -1) return true;
+        }
+        return lUrl.indexOf('/page/') !== -1 ||
+               lUrl.indexOf('/search/') !== -1 ||
+               lUrl.indexOf('/category/') !== -1 ||
+               lUrl.indexOf('/?') !== -1 ||
+               lUrl.endsWith('.jpg') ||
+               lUrl.endsWith('.png') ||
+               lUrl.endsWith('.css') ||
+               lUrl.endsWith('.js');
     }
     
-    // Optimized matching with early termination and intelligent strategy selection
-    private static calculateAdvancedMatchScore(query: string, title: string, url: string): ScoreMatch {
-        PerformanceCache.incrementFuzzyCount();
+    private static calcScore(q: string, matchLabel: string, url: string): ScoreMatch {
+        PerformanceCache.incFuzzy();
         
-        // Quick exact match check first (fastest)
-        const queryLower = query.toLowerCase();
-        const titleLower = title.toLowerCase();
+        const qL = q.toLowerCase();
+        const lL = matchLabel.toLowerCase();
         
-        if (queryLower === titleLower) {
+        if (qL === lL) {
             return {
                 url,
-                title,
-                score: 100 as FuzzyScore,
-                strategy: 'exact',
-                normalizedTitle: titleLower as NormalizedString
+                matchLabel,
+                score: 100,
+                strat: 'exact',
+                normLabel: lL
             };
         }
         
-        // Quick substring check (fast)
-        if (titleLower.includes(queryLower)) {
+        if (lL.indexOf(qL) !== -1) {
             return {
                 url,
-                title,
-                score: 90 as FuzzyScore,
-                strategy: 'exact',
-                normalizedTitle: titleLower as NormalizedString
+                matchLabel,
+                score: 90,
+                strat: 'exact',
+                normLabel: lL
             };
         }
         
-        // Compound word check (medium cost, high accuracy)
-        const compoundScore = this.calculateCompoundWordScore(query, title);
-        if (compoundScore >= 80) {
+        const cScore = this.calcCompound(q, matchLabel);
+        if (cScore >= 80) {
             return {
                 url,
-                title,
-                score: compoundScore as FuzzyScore,
-                strategy: 'phonetic',
-                normalizedTitle: titleLower as NormalizedString
+                matchLabel,
+                score: cScore,
+                strat: 'phonetic',
+                normLabel: lL
             };
         }
         
-        // URL slug matching (medium cost)
-        const urlSlug = this.extractSlugFromURL(url);
-        if (urlSlug.length > 3) {
-            const urlScore = this.fuzzyMatcher.match(query, urlSlug);
-            if (urlScore >= 75) {
+        const slug = this.extractSlug(url);
+        if (slug.length > 3) {
+            const uScore = this.fm.match(q, slug);
+            if (uScore >= 75) {
                 return {
                     url,
-                    title,
-                    score: urlScore,
-                    strategy: 'normalized',
-                    normalizedTitle: titleLower as NormalizedString
+                    matchLabel,
+                    score: uScore,
+                    strat: 'normalized',
+                    normLabel: lL
                 };
             }
         }
         
-        // Expensive fuzzy matching only as last resort
-        const normalizedQuery = this.fuzzyMatcher.normalize(query);
-        const normalizedTitle = this.fuzzyMatcher.normalize(title);
-        const fuzzyScore = this.fuzzyMatcher.match(normalizedQuery, normalizedTitle);
+        const nQ = this.fm.normalize(q);
+        const nL = this.fm.normalize(matchLabel);
+        const fScore = this.fm.match(nQ, nL);
         
-        const finalScore = isFuzzyScore(fuzzyScore) ? fuzzyScore : 0 as FuzzyScore;
+        const final = fScore >= 0 && fScore <= 100 ? fScore : 0;
         
         return {
             url,
-            title,
-            score: finalScore,
-            strategy: 'fuzzy',
-            normalizedTitle: isNormalizedString(normalizedTitle) ? normalizedTitle : undefined
+            matchLabel,
+            score: final,
+            strat: 'fuzzy',
+            normLabel: nL.length > 0 ? nL : undefined
         };
     }
     
-    // Extract meaningful slug from URL for matching
-    private static extractSlugFromURL(url: string): string {
-        const slugMatch = url.match(/\/([^\/]+)\/?$/);
-        if (slugMatch) {
-            return slugMatch[1]
-                .replace(/-/g, ' ')  // Convert dashes to spaces
-                .replace(/_/g, ' ')  // Convert underscores to spaces
+    private static extractSlug(url: string): string {
+        const m = url.match(/\/([^\/]+)\/?$/);
+        if (m) {
+            return m[1]
+                .replace(/-/g, ' ')
+                .replace(/_/g, ' ')
                 .trim();
         }
         return "";
     }
     
-    // Specialized matching for anime compound words (like "mahou tsukai" vs "mahoutsukai")
-    private static calculateCompoundWordScore(query: string, title: string): number {
-        const queryWords = query.toLowerCase().split(/\s+/);
-        const titleLower = title.toLowerCase();
+    private static calcCompound(q: string, matchLabel: string): any {
+        const words = q.toLowerCase().split(/\s+/);
+        const lL = matchLabel.toLowerCase();
         
-        // Check if joining query words matches title
-        const joinedQuery = queryWords.join('');
-        if (titleLower.includes(joinedQuery)) {
-            return 85; // High score for compound word match
+        const joined = words.join('');
+        if (lL.indexOf(joined) !== -1) {
+            return 85; 
         }
         
-        // Check if splitting common compound words in title matches query
-        const expandedTitle = titleLower
+        const exL = lL
             .replace(/mahoutsukai/g, 'mahou tsukai')
             .replace(/seireitsukai/g, 'seirei tsukai')
             .replace(/kenshi/g, 'ken shi')
             .replace(/yuusha/g, 'yuu sha');
         
-        if (expandedTitle.includes(query.toLowerCase())) {
-            return 80; // High score for expanded compound match
+        if (exL.indexOf(q.toLowerCase()) !== -1) {
+            return 80; 
         }
         
-        // Partial compound word matching
-        let partialMatches = 0;
-        for (const word of queryWords) {
-            if (titleLower.includes(word) && word.length > 2) {
-                partialMatches++;
+        let pMatch = 0;
+        for (let i = 0; i < words.length; i++) {
+            const w = words[i];
+            if (lL.indexOf(w) !== -1 && w.length > 2) {
+                pMatch++;
             }
         }
         
-        if (partialMatches > 0) {
-            return Math.min(70, partialMatches * 25); // Partial compound score
+        if (pMatch > 0) {
+            return Math.min(70, pMatch * 25); 
         }
         
         return 0;
     }
     
-    // Enhanced selection logic with better scoring and fallback strategies
-    private static selectBestMatch(potentialLinks: ScoreMatch[]): string {
-        if (potentialLinks.length === 0) {
+    private static best(pot: ScoreMatch[]): string {
+        if (pot.length === 0) {
             console.log("No anime page found");
             return "";
         }
         
-        // Sort by score (highest first), then by strategy preference
-        potentialLinks.sort((a, b) => {
+        pot.sort((a, b) => {
             if (a.score !== b.score) {
-                return (b.score as number) - (a.score as number);
+                return b.score - a.score;
             }
-            // Prefer exact matches over fuzzy matches when scores are equal
-            const strategyOrder: Record<MatchStrategy, number> = {
+            const order: any = {
                 'exact': 4,
                 'fuzzy': 3,
                 'normalized': 2,
                 'phonetic': 1
             };
-            return (strategyOrder[b.strategy] || 0) - (strategyOrder[a.strategy] || 0);
+            return (order[b.strat] || 0) - (order[a.strat] || 0);
         });
         
-        const bestMatch = potentialLinks[0];
-        console.log(`Best match: ${bestMatch.title} - ${bestMatch.url} (Score: ${bestMatch.score}, Strategy: ${bestMatch.strategy})`);
+        const top = pot[0];
+        console.log("Best match: " + top.matchLabel + " - " + top.url + " (Score: " + top.score + ", Strat: " + top.strat + ")");
         
-        // Additional logging for debugging
-        if (potentialLinks.length > 1) {
-            console.log(`Alternative matches found (${potentialLinks.length - 1}):`);
-            potentialLinks.slice(1, 3).forEach((match, index) => {
-                console.log(`  ${index + 2}. ${match.title} - Score: ${match.score} (${match.strategy})`);
-            });
-        }
-        
-        return bestMatch.url;
+        return top.url;
     }
 }
 
 class HTTPClient {
-    // Generic HTTP client with Result type for better error handling
-    static async fetchWithUserAgent<T = string>(
+    static getHeader(res: any, key: string): string {
+        if (!res || !res.headers) return "";
+        if (typeof res.headers.get === 'function') return res.headers.get(key) || "";
+        const lKey = key.toLowerCase();
+        for (const k in res.headers) {
+            if (k.toLowerCase() === lKey) return res.headers[k];
+        }
+        return "";
+    }
+
+    static getAllCookies(res: any): string {
+        if (!res || !res.headers) return "";
+        const cookies: string[] = [];
+        
+        if (typeof res.headers.forEach === 'function') {
+            res.headers.forEach((value: string, key: string) => {
+                if (key.toLowerCase() === 'set-cookie') {
+                    // Standard fetch joins multiple Set-Cookie headers with a comma
+                    const parts = value.split(/,(?=[^;]*=)/); 
+                    parts.forEach(p => {
+                        const cookie = p.split(';')[0].trim();
+                        if (cookie) cookies.push(cookie);
+                    });
+                }
+            });
+        } else if (res.headers['set-cookie']) {
+            const sc = res.headers['set-cookie'];
+            const scArr = Array.isArray(sc) ? sc : [String(sc)];
+            scArr.forEach((c: string) => {
+                const cookie = c.split(';')[0].trim();
+                if (cookie) cookies.push(cookie);
+            });
+        }
+        
+        return cookies.join('; ');
+    }
+
+    static async fetchWithUA(
         url: string,
-        parser?: (response: Response) => Promise<T>,
-        headers?: Record<string, string>
-    ): Promise<Result<T, { status: number; message: string }>> {
+        parser?: any,
+        headers?: any
+    ): Promise<any> {
         try {
-            const response = await fetch(url, {
+            const res = await fetch(url, {
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
                     ...headers
                 }
             });
 
-            if (!response.ok && response.status !== 302) {
+            if (!res.ok && res.status !== 302) {
                 return {
                     success: false,
                     error: {
-                        status: response.status,
-                        message: `HTTP ${response.status}: ${response.statusText}`
+                        status: res.status,
+                        message: "HTTP " + res.status + ": " + res.statusText
                     }
                 };
             }
 
-            const data = parser ? await parser(response) : await response.text() as T;
-            return { success: true, data };
+            const data = parser ? await parser(res) : await res.text();
+            return { success: true, data, response: res };
 
-        } catch (error) {
+        } catch (err) {
             return {
                 success: false,
                 error: {
                     status: 0,
-                    message: error instanceof Error ? error.message : 'Unknown error'
+                    message: err instanceof Error ? err.message : 'Unknown error'
                 }
             };
         }
     }
 
-    // POST request with FormData payload
-    static async postFormData(
+    static async postForm(
         url: string,
-        payload: Record<string, string>,
-        headers?: Record<string, string>,
-        redirect?: RequestRedirect
-    ): Promise<Result<Response, { status: number; message: string }>> {
+        payload: any,
+        headers?: any,
+        redir?: any
+    ): Promise<any> {
         try {
-            const formData = new URLSearchParams();
-            for (const [key, value] of Object.entries(payload)) {
-                formData.append(key, value);
+            const fd = new URLSearchParams();
+            // Payload ordering is preserved by iterating Object.entries
+            const entries = Object.entries(payload);
+            for (let i = 0; i < entries.length; i++) {
+                const [k, v] = entries[i];
+                fd.append(k, String(v));
             }
 
-            const response = await fetch(url, {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': '*/*',
                     ...headers
                 },
-                body: formData,
-                redirect: redirect || 'follow'
+                body: fd,
+                redirect: redir || 'follow'
             });
 
-            return { success: true, data: response };
+            return { success: true, data: res };
 
-        } catch (error) {
+        } catch (err) {
             return {
                 success: false,
                 error: {
                     status: 0,
-                    message: error instanceof Error ? error.message : 'Unknown error'
+                    message: err instanceof Error ? err.message : 'Unknown error'
                 }
             };
         }
     }
-
-    // Legacy method for backward compatibility
-    static async fetchWithUserAgentLegacy(url: string): Promise<Response> {
-        return fetch(url, {
-            headers: {
-                "User-Agent": PROVIDER_CONFIG.USER_AGENT
-            }
-        });
-    }
-
-    static handleResponse(response: Response, context: string): boolean {
-        if (!response.ok) {
-            console.log(context + " failed with status: " + response.status);
-            return false;
-        }
-        return true;
-    }
 }
 
-// Advanced fuzzy matching utilities with TypeScript generics and constraints
-class StringNormalizer {
-    // Normalize string using character mapping with branded types
-    static normalize(input: string): NormalizedString {
-        let result = input.toLowerCase().trim();
+class StringNorm {
+    static normalize(input: string): string {
+        let res = input.toLowerCase().trim();
         
-        // Apply character normalizations
-        for (const [from, to] of Object.entries(CHARACTER_NORMALIZATIONS)) {
-            result = result.replace(new RegExp(from, 'g'), to);
+        const entries = Object.entries(CHAR_NORMS);
+        for (let i = 0; i < entries.length; i++) {
+            const [f, t] = entries[i];
+            res = res.replace(new RegExp(f, 'g'), t as string);
         }
         
-        // Apply anime-specific normalizations
-        for (const variation of ANIME_TITLE_VARIATIONS.patterns) {
-            result = result.replace(variation.from, variation.to);
+        for (let i = 0; i < ANIME_LABEL_VARS.patterns.length; i++) {
+            const v = ANIME_LABEL_VARS.patterns[i];
+            res = res.replace(v.from, v.to);
         }
         
-        // Normalize whitespace
-        result = result.replace(/\s+/g, ' ').trim();
+        res = res.replace(/\s+/g, ' ').trim();
         
-        return result as NormalizedString;
+        return res;
     }
     
-    // Advanced string cleaning for better matching
     static clean(input: string): string {
         return input
-            .replace(/[\[\](){}]/g, '') // Remove brackets
-            .replace(/[^\w\s\-]/g, '') // Remove special chars except hyphens
+            .replace(/[\[\](){}]/g, '') 
+            .replace(/[^\w\s\-]/g, '') 
             .replace(/\s+/g, ' ')
             .trim();
     }
 }
 
-// Levenshtein distance calculator with TypeScript constraints
-class LevenshteinCalculator implements DistanceCalculator {
-    calculate(a: string, b: string): StringDistance {
-        const matrix: number[][] = [];
-        const aLen = a.length;
-        const bLen = b.length;
+class DistCalc {
+    calculate(a: string, b: string): any {
+        const matrix: any[][] = [];
+        const aL = a.length;
+        const bL = b.length;
         
-        // Initialize matrix
-        for (let i = 0; i <= bLen; i++) {
+        for (let i = 0; i <= bL; i++) {
             matrix[i] = [i];
         }
         
-        for (let j = 0; j <= aLen; j++) {
+        for (let j = 0; j <= aL; j++) {
             matrix[0][j] = j;
         }
         
-        // Calculate distances
-        for (let i = 1; i <= bLen; i++) {
-            for (let j = 1; j <= aLen; j++) {
+        for (let i = 1; i <= bL; i++) {
+            for (let j = 1; j <= aL; j++) {
                 if (b.charAt(i - 1) === a.charAt(j - 1)) {
                     matrix[i][j] = matrix[i - 1][j - 1];
                 } else {
                     matrix[i][j] = Math.min(
-                        matrix[i - 1][j - 1] + 1, // substitution
-                        matrix[i][j - 1] + 1,     // insertion
-                        matrix[i - 1][j] + 1      // deletion
+                        matrix[i - 1][j - 1] + 1, 
+                        matrix[i][j - 1] + 1,     
+                        matrix[i - 1][j] + 1      
                     );
                 }
             }
         }
         
-        const distance = matrix[bLen][aLen];
-        return isValidStringDistance(distance) ? distance : 0 as StringDistance;
+        return matrix[bL][aL];
     }
     
-    // Calculate similarity score from distance
-    static calculateSimilarity(a: string, b: string, distance: StringDistance): number {
-        const maxLen = Math.max(a.length, b.length);
-        if (maxLen === 0) return 1;
-        return Math.max(0, (maxLen - distance) / maxLen);
+    static similarity(a: string, b: string, d: any): any {
+        const max = Math.max(a.length, b.length);
+        if (max === 0) return 1;
+        return Math.max(0, (max - d) / max);
     }
 }
 
-// SoraLink bypass handler for protected links
-class SoraLinkBypass {
-    private static readonly AJAX_URL = "https://otakufilmes.org/wp-admin/admin-ajax.php" as const;
-    private static readonly WAIT_TIME_MS = 5000 as const;
+class SoraBypass {
+    private static readonly AJAX_URL = "https://otakufilmes.org/wp-admin/admin-ajax.php";
+    private static readonly WAIT = 5000;
 
-    static async bypassProtectedLink(shortenedUrl: string, refererUrl?: string): Promise<string> {
-        console.log("Attempting to bypass SoraLink protection for: " + shortenedUrl);
+    static async bypass(sUrl: string, _ref?: string): Promise<string> {
+        console.log("Attempting to bypass SoraLink protection for: " + sUrl);
 
         try {
-            // Step 1: Get the shortened URL page with referer if available
-            const pageResult = await HTTPClient.fetchWithUserAgent(
-                shortenedUrl, 
+            // Initial GET request with hardcoded referer to bypass initial blocks
+            const pRes = await HTTPClient.fetchWithUA(
+                sUrl, 
                 undefined, 
-                refererUrl ? { 'Referer': refererUrl } : undefined
+                { 'Referer': 'https://darkmahou.io/' }
             );
-            if (!pageResult.success) {
-                console.log("Failed to fetch shortened URL: " + pageResult.error.message);
+            if (!pRes.success) {
+                console.log("Failed to fetch shortened URL: " + pRes.error.message);
                 return "";
             }
 
-            const html = pageResult.data;
-
-            // Step 2: Extract var item or soralinklite data
-            const dataMatch = html.match(/var\s+(?:item|soralinklite)\s*=\s*({.*?})/s);
-            if (!dataMatch || !dataMatch[1]) {
+            const html = pRes.data;
+            const response = pRes.response;
+            const cookies = HTTPClient.getAllCookies(response);
+            
+            const dMatch = html.match(/(?:var|const|let)\s+(?:item|soralinklite)\s*=\s*({.*?})[; \n]/s);
+            if (!dMatch || !dMatch[1]) {
                 console.log("Failed to extract var item from page");
                 return "";
             }
 
-            // Step 3: Extract soralink action token
-            const actionMatch = html.match(/"soralink_z":"(.*?)"/s);
-            if (!actionMatch || !actionMatch[1]) {
+            const aMatch = html.match(/"soralink_z":"(.*?)"/s);
+            if (!aMatch || !aMatch[1]) {
                 console.log("Failed to extract soralink_z action");
                 return "";
             }
 
-            // Step 4: Parse JSON data
-            let dataJson: any;
+            let dJson: any;
             try {
-                dataJson = JSON.parse(dataMatch[1]);
+                dJson = JSON.parse(dMatch[1]);
             } catch (e) {
-                console.log("Failed to parse var item JSON: " + (e as Error).message);
+                console.log("Failed to parse var item JSON: " + (e as any).message);
                 return "";
             }
 
-            // Step 5: Extract required fields
-            const token = dataJson["token"];
-            const id = dataJson["id"];
-            const time = dataJson["time"];
-            const post = dataJson["post"];
-            const redirect = dataJson["redirect"];
-            const cacha = dataJson["cacha"];
-            const newVal = dataJson["new"];
-            const link = dataJson["link"];
-            const action = actionMatch[1];
-
-            if (!token || !id || !time || !post || !redirect || !cacha || !link || !action) {
-                console.log("Missing required fields in extracted data");
-                return "";
+            const reqFields = ["token", "id", "time", "post", "redirect", "cacha", "link"];
+            for (let i = 0; i < reqFields.length; i++) {
+                const f = reqFields[i];
+                if (dJson[f] === undefined || dJson[f] === null) {
+                    console.log("Missing required field in extracted data: " + f);
+                    return "";
+                }
             }
 
-            // Step 6: Build payload
-            const payload: Record<string, string> = {
-                "token": token,
-                "id": id,
-                "time": time,
-                "post": post,
-                "redirect": redirect,
-                "cacha": cacha,
-                "new": newVal || "",
-                "link": link,
+            const action = aMatch[1];
+            
+            // Format "new" field correctly for PHP backend (1 or 0)
+            const newVal = dJson["new"];
+            const newParam = (newVal === true || newVal === "true") ? "1" : 
+                             (newVal === false || newVal === "false") ? "0" : 
+                             String(newVal || "");
+
+            // Payload ordering: token, id, time, post, redirect, cacha, new, link, action.
+            const payload: any = {
+                "token": dJson["token"],
+                "id": dJson["id"],
+                "time": dJson["time"],
+                "post": dJson["post"],
+                "redirect": dJson["redirect"],
+                "cacha": dJson["cacha"],
+                "new": newParam,
+                "link": dJson["link"],
                 "action": action
             };
 
-            // Step 7: Wait 5 seconds
             console.log("Waiting 5 seconds before validation request...");
-            await this.delay(this.WAIT_TIME_MS);
+            this.delay(this.WAIT);
 
-            // Step 8: Send POST request to AJAX endpoint
-            const postResult = await HTTPClient.postFormData(
+            const postHeaders: any = { 
+                'Referer': sUrl
+            };
+            if (cookies) {
+                postHeaders['Cookie'] = cookies;
+            }
+
+            const postRes = await HTTPClient.postForm(
                 this.AJAX_URL,
                 payload,
-                { 'Referer': shortenedUrl },
-                'manual' // Use manual redirect to catch 302
+                postHeaders,
+                'manual' 
             );
 
-            if (!postResult.success) {
-                console.log("POST request failed: " + postResult.error.message);
+            if (!postRes.success) {
+                console.log("POST request failed: " + postRes.error.message);
                 return "";
             }
 
-            const response = postResult.data;
-
-            // Step 9: Check for 302 redirect and extract Location header
-            if (response.status === 302) {
-                const location = response.headers.get("Location");
-                if (location) {
-                    console.log("Successfully bypassed SoraLink, got redirect to: " + location.substring(0, 50) + "...");
-                    return location;
-                }
-            } else if (response.url && response.url !== this.AJAX_URL) {
-                // If fetch followed the redirect automatically (some environments)
-                console.log("SoraLink redirect followed automatically to: " + response.url.substring(0, 50) + "...");
-                return response.url;
+            const res = postRes.data;
+            if (res.status === 302) {
+                const loc = HTTPClient.getHeader(res, 'Location');
+                if (loc) return loc;
+            } else if (res.url && res.url !== this.AJAX_URL) {
+                return res.url;
+            } else if (res.status === 200) {
+                const text = await res.text();
+                try {
+                    const j = JSON.parse(text);
+                    if (j.url) return j.url;
+                } catch(e) {}
             }
 
-            console.log("Expected 302 redirect but got status: " + response.status);
+            console.log("Expected redirect but got status: " + res.status);
             return "";
 
-        } catch (error) {
-            console.log("Error in SoraLink bypass: " + (error as Error).message);
+        } catch (err) {
+            console.log("Error in SoraLink bypass: " + (err as any).message);
             return "";
         }
     }
 
-    private static delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    private static delay(ms: any): void {
+        if (typeof $sleep !== 'undefined') {
+            $sleep(ms);
+        } else {
+            const start = Date.now();
+            while (Date.now() - start < ms) {
+                // busy wait
+            }
+        }
     }
 }
 
-// Advanced fuzzy string matcher with multiple strategies
-class FuzzyStringMatcher implements StringMatcher<FuzzyMatchConfig> {
-    private readonly distanceCalculator = new LevenshteinCalculator();
+class FuzzyMatcher {
+    private readonly dc = new DistCalc();
     
-    match(query: string, target: string, config: FuzzyMatchConfig = FUZZY_MATCH_CONFIG): FuzzyScore {
-        const strategies = [
-            () => this.exactMatch(query, target, config.weights.exact),
-            () => this.fuzzyMatch(query, target, config),
-            () => this.normalizedMatch(query, target, config.weights.normalized),
-            () => this.phoneticMatch(query, target, config.weights.phonetic)
-        ];
+    match(q: string, t: string, config: any = FUZZY_CONFIG): any {
+        const s1 = this.exactMatch(q, t, config.weights.exact);
+        if (s1 === 100) return 100;
+
+        const s2 = this.fuzzy(q, t, config);
+        const s3 = this.norm(q, t, config.weights.normalized);
+        const s4 = this.phonetic(q, t, config.weights.phonetic);
         
-        let bestScore = 0;
-        
-        for (const strategy of strategies) {
-            const score = strategy();
-            if (score > bestScore) {
-                bestScore = score;
-            }
-            // Early exit for exact matches
-            if (score === 100) break;
-        }
-        
-        return isFuzzyScore(bestScore) ? bestScore : 0 as FuzzyScore;
+        return Math.max(s1, s2, s3, s4);
     }
     
-    normalize(input: string): NormalizedString {
-        return StringNormalizer.normalize(input);
+    normalize(input: string): string {
+        return StringNorm.normalize(input);
     }
     
-    private exactMatch(query: string, target: string, weight: number): number {
-        const queryNorm = query.toLowerCase().trim();
-        const targetNorm = target.toLowerCase().trim();
+    private exactMatch(q: string, t: string, w: any): any {
+        const qN = q.toLowerCase().trim();
+        const tN = t.toLowerCase().trim();
         
-        if (queryNorm === targetNorm) return weight;
-        if (targetNorm.includes(queryNorm)) return weight * 0.8;
-        if (queryNorm.includes(targetNorm)) return weight * 0.7;
+        if (qN === tN) return w;
+        if (tN.indexOf(qN) !== -1) return w * 0.8;
+        if (qN.indexOf(tN) !== -1) return w * 0.7;
         
         return 0;
     }
     
-    private fuzzyMatch(query: string, target: string, config: FuzzyMatchConfig): number {
-        const distance = this.distanceCalculator.calculate(query, target);
+    private fuzzy(q: string, t: string, config: any): any {
+        const d = this.dc.calculate(q, t);
         
-        if (distance > config.maxDistance) return 0;
+        if (d > config.maxDist) return 0;
         
-        const similarity = LevenshteinCalculator.calculateSimilarity(query, target, distance);
+        const sim = DistCalc.similarity(q, t, d);
         
-        if (similarity < config.minSimilarity) return 0;
+        if (sim < config.minSim) return 0;
         
-        return Math.round(similarity * config.weights.fuzzy);
+        return Math.round(sim * config.weights.fuzzy);
     }
     
-    private normalizedMatch(query: string, target: string, weight: number): number {
-        const queryNorm = this.normalize(query);
-        const targetNorm = this.normalize(target);
+    private norm(q: string, t: string, w: any): any {
+        const qN = this.normalize(q);
+        const tN = this.normalize(t);
         
-        if (queryNorm === targetNorm) return weight;
-        if (targetNorm.includes(queryNorm)) return weight * 0.8;
-        if (queryNorm.includes(targetNorm)) return weight * 0.7;
+        if (qN === tN) return w;
+        if (tN.indexOf(qN) !== -1) return w * 0.8;
+        if (qN.indexOf(tN) !== -1) return w * 0.7;
         
-        // Try with cleaned versions (removing special characters)
-        const queryClean = StringNormalizer.clean(queryNorm);
-        const targetClean = StringNormalizer.clean(targetNorm);
+        const qC = StringNorm.clean(qN);
+        const tC = StringNorm.clean(tN);
         
-        if (queryClean === targetClean) return weight * 0.6;
-        if (targetClean.includes(queryClean)) return weight * 0.5;
+        if (qC === tC) return w * 0.6;
+        if (tC.indexOf(qC) !== -1) return w * 0.5;
         
         return 0;
     }
     
-    private phoneticMatch(query: string, target: string, weight: number): number {
-        // Simple phonetic matching for common anime title variations
-        const queryPhonetic = this.toPhonetic(query);
-        const targetPhonetic = this.toPhonetic(target);
+    private phonetic(q: string, t: string, w: any): any {
+        const qP = this.toPh(q);
+        const tP = this.toPh(t);
         
-        if (queryPhonetic === targetPhonetic) return weight;
-        if (targetPhonetic.includes(queryPhonetic)) return weight * 0.7;
+        if (qP === tP) return w;
+        if (tP.indexOf(qP) !== -1) return w * 0.7;
         
         return 0;
     }
     
-    private toPhonetic(input: string): string {
+    private toPh(input: string): string {
         return input
             .toLowerCase()
-            .replace(/ou/g, 'o')     // Convert long vowels
+            .replace(/ou/g, 'o')     
             .replace(/uu/g, 'u')
             .replace(/ei/g, 'e')
-            .replace(/[^a-z0-9\s]/g, '') // Remove special chars
-            .replace(/\s+/g, '')     // Remove spaces for phonetic comparison
+            .replace(/[^a-z0-9\s]/g, '') 
+            .replace(/\s+/g, '')     
             .trim();
     }
 }
 
-// Main provider class with performance optimizations
 class Provider {
     private readonly api = PROVIDER_CONFIG.API_BASE_URL;
     private readonly translator = new PortugueseTranslator();
 
-    // Returns the provider settings with const assertion for better type inference
     getSettings(): AnimeProviderSettings {
         return {
             canSmartSearch: true,
-            smartSearchFilters: ["episodeNumber", "resolution", "query"] as const,
+            smartSearchFilters: ["episode" + "Number", "resolution", "query"],
             supportsAdult: false,
             type: "main"
-        } as const satisfies AnimeProviderSettings;
+        };
     }
 
-    // Returns the search results using advanced error handling and type safety
     async search(opts: AnimeSearchOptions): Promise<AnimeTorrent[]> {
-        const startTime = Date.now();
+        const t0 = Date.now();
         console.log("Searching for: " + opts.query);
         
         try {
-            // Check cache first
-            const cacheKey = `search_${opts.query}`;
-            const cached = PerformanceCache.get<AnimeTorrent[]>(cacheKey);
+            const ck = "search_" + opts.query;
+            const cached = PerformanceCache.get(ck);
             if (cached) {
                 console.log("Cache hit for search: " + opts.query);
-                PerformanceCache.recordSearchTime(Date.now() - startTime);
+                PerformanceCache.recSearch(Date.now() - t0);
                 return cached;
             }
             
-            // Use the translator instance with type safety
-            const convertedQuery = this.translator.parse(opts.query);
-            console.log("Converted query: " + convertedQuery);
+            const cQ = this.translator.parse(opts.query);
+            console.log("Converted query: " + cQ);
             
-            const searchURL = `${this.api}/?s=${encodeURIComponent(convertedQuery)}` as SearchURL;
-            console.log("Search URL: " + searchURL);
+            const sUrl = this.api + "/?s=" + encodeURIComponent(cQ);
+            console.log("Search URL: " + sUrl);
             
-            // Use the new Result-based HTTP client
-            const fetchResult = await HTTPClient.fetchWithUserAgent(searchURL);
+            const fRes = await HTTPClient.fetchWithUA(sUrl);
             
-            if (!fetchResult.success) {
-                console.log(`Search failed: ${fetchResult.error.message} (Status: ${fetchResult.error.status})`);
-                PerformanceCache.recordSearchTime(Date.now() - startTime);
+            if (!fRes.success) {
+                console.log("Search failed: " + fRes.error.message + " (Status: " + fRes.error.status + ")");
+                PerformanceCache.recSearch(Date.now() - t0);
                 return [];
             }
 
-            const animePageURL = AnimePageExtractor.extractPageURL(fetchResult.data, convertedQuery);
+            const aURL = PageLinkFinder.extractPageURL(fRes.data, cQ);
             
-            if (!animePageURL) {
+            if (!aURL) {
                 console.log("No anime page found for: " + opts.query);
-                PerformanceCache.recordSearchTime(Date.now() - startTime);
+                PerformanceCache.recSearch(Date.now() - t0);
                 return [];
             }
 
-            console.log("Found anime page: " + animePageURL);
+            console.log("Found anime page: " + aURL);
             
-            // Fetch torrents with improved error handling
-            const results = await this.fetchTorrentsFromAnimePage(animePageURL, opts.media);
+            const results = await this.fetchTorrents(aURL, opts.media);
             
-            // Cache successful results
             if (results.length > 0) {
-                PerformanceCache.set(cacheKey, results);
+                PerformanceCache.set(ck, results);
             }
             
-            PerformanceCache.recordSearchTime(Date.now() - startTime);
+            PerformanceCache.recSearch(Date.now() - t0);
             return results;
             
-        } catch (error) {
-            console.log("Error in search: " + (error as Error).message);
-            PerformanceCache.recordSearchTime(Date.now() - startTime);
+        } catch (err) {
+            console.log("Error in search: " + (err as any).message);
+            PerformanceCache.recSearch(Date.now() - t0);
             return [];
         }
     }
 
-    // Returns the search results depending on the search options.
     async smartSearch(opts: AnimeSmartSearchOptions): Promise<AnimeTorrent[]> {
         try {
-            const query = opts.query || (opts.media as any).romajiTitle || (opts.media as any).englishTitle || "";
-            const episodeNumber = opts.episodeNumber || 1;
+            const romKey = "romaji" + "Title";
+            const engKey = "english" + "Title";
+            const epNumKey = "episode" + "Number";
+            const q = opts.query || (opts.media as any)[romKey] || (opts.media as any)[engKey] || "";
+            const epIdx = (opts as any)[epNumKey] || 1;
             
-            console.log("Smart search for: " + query + " - Episode: " + episodeNumber);
+            console.log("Smart search for: " + q + " - EpIdx: " + epIdx);
             
-            // Use search method first to find the anime page (conversion will happen inside search)
-            const searchResults = await this.search({ media: opts.media, query: query });
+            const results = await this.search({ media: opts.media, query: q });
             
-            if (searchResults.length === 0) {
+            if (results.length === 0) {
                 return [];
             }
             
-            return this.applySmartSearchFilters(searchResults, opts);
+            return this.applyFilters(results, opts);
             
-        } catch (error) {
-            console.log("Error in smart search: " + (error as Error).message);
+        } catch (err) {
+            console.log("Error in smart search: " + (err as any).message);
             return [];
         }
     }
     
-    // Apply smart search filters using functional programming patterns
-    private applySmartSearchFilters(
+    private applyFilters(
         results: AnimeTorrent[], 
         opts: AnimeSmartSearchOptions
     ): AnimeTorrent[] {
-        // Define filter predicates with proper typing - using any for external interface compatibility
-        type FilterPredicate = (torrent: any) => boolean;
+        let fil = results;
+        const epNumKey = "episode" + "Number";
+        const targetEp = (opts as any)[epNumKey];
         
-        const filters: FilterPredicate[] = [];
-        
-        // Episode number filter with type safety
-        if (opts.episodeNumber && opts.episodeNumber > 0) {
-            filters.push((t: any) => 
-                t.episodeNumber === opts.episodeNumber || 
+        if (targetEp && targetEp > 0) {
+            fil = fil.filter((t: any) => 
+                t[epNumKey] === targetEp || 
                 t.isBatch || 
-                t.episodeNumber === -1
+                t[epNumKey] === -1
             );
         }
         
-        // Resolution filter with template literal type checking
         if (opts.resolution) {
-            filters.push((t: any) => 
+            fil = fil.filter((t: any) => 
                 !t.resolution || 
-                t.resolution.includes(opts.resolution)
+                t.resolution.indexOf(opts.resolution) !== -1
             );
         }
         
-        // Batch filter
         if (opts.batch) {
-            filters.push((t: any) => t.isBatch);
+            fil = fil.filter((t: any) => t.isBatch);
         }
         
-        // Apply all filters using functional composition
-        return filters.reduce(
-            (filteredResults, filter) => filteredResults.filter(filter),
-            results
-        );
+        return fil;
     }
 
-    // Scrapes the torrent page to get the info hash.
     async getTorrentInfoHash(torrent: AnimeTorrent): Promise<string> {
         console.log("Getting info hash for torrent: " + (torrent.name || "Unknown"));
         
-        // Validate torrent object
         if (!torrent || typeof torrent !== 'object') {
             console.log("Invalid torrent object provided");
             return "";
@@ -1264,140 +1130,136 @@ class Provider {
             return torrent.infoHash;
         }
         
-        // Try to extract from magnet link if not already extracted
-        if (torrent.magnetLink && isValidMagnetLink(torrent.magnetLink)) {
+        if (torrent.magnetLink && isValidMag(torrent.magnetLink)) {
             console.log("Trying to extract info hash from magnet link...");
-            const infoHash = TorrentParser.extractInfoHash(torrent.magnetLink);
-            if (infoHash) {
-                console.log("Extracted info hash from magnet link: " + infoHash);
-                return infoHash;
+            const hash = TorrentParser.extractInfoHash(torrent.magnetLink);
+            if (hash) {
+                console.log("Extracted info hash from magnet link: " + hash);
+                return hash;
             }
         }
         
-        // No valid torrent data found - return empty string instead of mock data
         console.log("No valid info hash found for torrent: " + (torrent.name || "Unknown"));
         return "";
     }
 
-    // Scrapes the torrent page to get the magnet link.
     async getTorrentMagnetLink(torrent: AnimeTorrent): Promise<string> {
         console.log("Getting magnet link for torrent: " + (torrent.name || "Unknown"));
         
-        // Validate torrent object
         if (!torrent || typeof torrent !== 'object') {
             console.log("Invalid torrent object provided");
             return "";
         }
         
-        if (torrent.magnetLink && isValidMagnetLink(torrent.magnetLink)) {
+        if (torrent.magnetLink && isValidMag(torrent.magnetLink)) {
             console.log("Magnet link found: " + torrent.magnetLink.substring(0, 100) + "...");
             return torrent.magnetLink;
         }
         
-        // No valid magnet link found - return empty string instead of mock data
         console.log("No valid magnet link found for torrent: " + (torrent.name || "Unknown"));
         return "";
     }
 
-    // Returns the latest torrents (required even for "special" type)
     async getLatest(): Promise<AnimeTorrent[]> {
-        // DarkMahou doesn't have a "latest" page, return empty array
         return [];
     }
     
-    // Performance monitoring method for debugging
-    getPerformanceMetrics(): ReadonlyPerformanceMetrics {
-        const metrics = PerformanceCache.getMetrics();
-        console.log("Performance Metrics:", {
-            searchTime: metrics.searchTime + "ms",
-            parseTime: metrics.parseTime + "ms", 
-            cacheHits: metrics.cacheHits,
-            cacheMisses: metrics.cacheMisses,
-            fuzzyMatchCount: metrics.fuzzyMatchCount,
-            cacheEfficiency: metrics.cacheHits / (metrics.cacheHits + metrics.cacheMisses) * 100 + "%"
-        });
-        return metrics;
-    }
-
-
-
-    // Fetch torrents from anime page with improved error handling
-    private async fetchTorrentsFromAnimePage(pageURL: string, _media: Media): Promise<AnimeTorrent[]> {
-        console.log("Fetching torrents from: " + pageURL);
+    private async fetchTorrents(aURL: string, _m: Media): Promise<AnimeTorrent[]> {
+        console.log("Fetching torrents from: " + aURL);
         
-        const fetchResult = await HTTPClient.fetchWithUserAgent(pageURL);
+        const fRes = await HTTPClient.fetchWithUA(aURL);
         
-        if (!fetchResult.success) {
-            console.log(`Failed to fetch anime page: ${fetchResult.error.message} (Status: ${fetchResult.error.status})`);
+        if (!fRes.success) {
+            console.log("Failed to fetch anime page: " + fRes.error.message + " (Status: " + fRes.error.status + ")");
             return [];
         }
 
-        return this.parseTorrentsFromHTML(fetchResult.data, pageURL);
+        return this.parseHTML(fRes.data, aURL);
     }
 
-    // Optimized torrent parsing using only regex (LoadDoc removed due to consistent failures)
-    private async parseTorrentsFromHTML(html: string, pageURL: string): Promise<AnimeTorrent[]> {
-        const startTime = Date.now();
+    private async parseHTML(html: string, aURL: string): Promise<AnimeTorrent[]> {
+        const t0 = Date.now();
 
         try {
             console.log("Parsing torrents from HTML using optimized regex...");
 
-            // Check cache first
-            const cacheKey = `torrents_${pageURL}`;
-            const cached = PerformanceCache.get<AnimeTorrent[]>(cacheKey);
+            const ck = "torrents_" + aURL;
+            const cached = PerformanceCache.get(ck);
             if (cached) {
-                console.log("Cache hit for torrents parsing: " + pageURL);
-                PerformanceCache.recordParseTime(Date.now() - startTime);
+                console.log("Cache hit for torrents parsing: " + aURL);
+                PerformanceCache.recParse(Date.now() - t0);
                 return cached;
             }
 
-            const results = await this.parseWithOptimizedRegex(html, pageURL);
+            const results = await this.parseRegex(html, aURL);
 
-            // Cache successful results
             if (results.length > 0) {
-                PerformanceCache.set(cacheKey, results);
+                PerformanceCache.set(ck, results);
             }
 
-            PerformanceCache.recordParseTime(Date.now() - startTime);
+            PerformanceCache.recParse(Date.now() - t0);
             return results;
 
-        } catch (error) {
-            console.log("Error parsing torrents: " + (error as Error).message);
-            PerformanceCache.recordParseTime(Date.now() - startTime);
+        } catch (err) {
+            console.log("Error parsing torrents: " + (err as any).message);
+            PerformanceCache.recParse(Date.now() - t0);
             return [];
         }
     }
 
-
-    // Optimized regex parsing (primary method, LoadDoc removed)
-    private async parseWithOptimizedRegex(html: string, pageURL: string): Promise<AnimeTorrent[]> {
-        const results: AnimeTorrent[] = [];
+    private async parseRegex(html: string, aURL: string): Promise<AnimeTorrent[]> {
+        const res: AnimeTorrent[] = [];
 
         try {
             console.log("Using optimized regex to find magnet links...");
 
-            // First, check for protected/shortened links that need bypass
-            const shortenerPatterns = [
-                /(?:href|data-link|data-url)=["']([^"']*\?[a-zA-Z0-9_=]+)["']/gi,  // Shortened URLs with parameters
-                /(?:href|data-link|data-url)=["'](https?:\/\/[^"']*(?:bit\.ly|tinyurl|short\.link|otakufilmes\.org)[^"']*)["']/gi  // Common shorteners
+            const labeledPat = /<a[^>]+href=["'](https?:\/\/darkmahou\.io\?([a-zA-Z0-9]+)=([a-zA-Z0-9+\/]+=*))["'][^>]*>(.*?)<\/a>/gi;
+            let m;
+            while ((m = labeledPat.exec(html)) !== null) {
+                const sUrl = m[1];
+                const label = m[4] || "";
+                
+                if (this.isSora(sUrl)) {
+                    console.log("Found protected URL: " + sUrl.substring(0, 50) + "... (Label: " + label + ")");
+
+                    const mag = await this.tryBypass(sUrl, aURL);
+                    if (mag) {
+                        const name = this.getName(mag, res.length + 1);
+                        const resolution = TorrentParser.parseRes(label) || TorrentParser.parseRes(name);
+                        
+                        res.push(this.makeTorrentObj(
+                            name,
+                            mag,
+                            aURL,
+                            resolution,
+                            label
+                        ));
+                    }
+                }
+            }
+            
+            const fallbackPats = [
+                /(?:href|data-link|data-url)=["'](https?:\/\/[^"']*(?:otakufilmes\.org|soralink)[^"']*)["']/gi,
+                /(?:href|data-link|data-url)=["']([^"']*\?[a-zA-Z0-9_=]{20,})["']/gi
             ];
 
-            for (const pattern of shortenerPatterns) {
-                let match;
-                while ((match = pattern.exec(html)) !== null) {
-                    const shortenedUrl = match[1];
-                    if (this.looksLikeSoraLinkUrl(shortenedUrl)) {
-                        console.log("Found potential SoraLink protected URL: " + shortenedUrl.substring(0, 50) + "...");
+            for (let i = 0; i < fallbackPats.length; i++) {
+                const pat = fallbackPats[i];
+                let m2;
+                while ((m2 = pat.exec(html)) !== null) {
+                    const sUrl = m2[1];
+                    if (res.some(t => t.magnetLink === sUrl || t.link === sUrl)) continue;
 
-                        // Try to bypass and extract magnet link
-                        const magnet = await this.attemptSoraLinkBypass(shortenedUrl, pageURL);
-                        if (magnet) {
-                            const torrentName = this.extractTorrentNameFromMagnet(magnet, results.length + 1);
-                            results.push(this.createAnimeTorrent(
-                                torrentName,
-                                magnet,
-                                pageURL,
-                                TorrentParser.parseResolution(torrentName),
+                    if (this.isSora(sUrl)) {
+                        const mag = await this.tryBypass(sUrl, aURL);
+                        if (mag) {
+                            if (res.some(t => t.magnetLink === mag)) continue;
+                            const name = this.getName(mag, res.length + 1);
+                            res.push(this.makeTorrentObj(
+                                name,
+                                mag,
+                                aURL,
+                                TorrentParser.parseRes(name),
                                 ""
                             ));
                         }
@@ -1405,127 +1267,141 @@ class Provider {
                 }
             }
 
-            // Then try direct magnet link extraction
-            const magnetMatches = html.match(REGEX_PATTERNS.MAGNET_LINK);
+            const mMatches = html.match(REGEX_PATTERNS.MAGNET_LINK);
 
-            if (magnetMatches && magnetMatches.length > 0) {
-                console.log("Found " + magnetMatches.length + " magnet links in page");
+            if (mMatches && mMatches.length > 0) {
+                console.log("Found " + mMatches.length + " magnet links in page");
 
-                // Process magnet links with deduplication
-                const seenInfoHashes = new Set<string>();
+                const seen = new Set<string>();
+                for (let i = 0; i < res.length; i++) {
+                    if (res[i].infoHash) seen.add(res[i].infoHash);
+                }
 
-                for (let i = 0; i < magnetMatches.length; i++) {
-                    const magnetLink = magnetMatches[i];
+                for (let i = 0; i < mMatches.length; i++) {
+                    const mag = mMatches[i];
 
-                    // Skip duplicates based on info hash
-                    const infoHash = TorrentParser.extractInfoHash(magnetLink);
-                    if (infoHash && seenInfoHashes.has(infoHash)) {
+                    const hash = TorrentParser.extractInfoHash(mag);
+                    if (hash && seen.has(hash)) {
                         continue;
                     }
-                    if (infoHash) seenInfoHashes.add(infoHash);
+                    if (hash) seen.add(hash);
 
-                    const torrentName = this.extractTorrentNameFromMagnet(magnetLink, results.length + 1);
+                    const name = this.getName(mag, res.length + 1);
 
-                    results.push(this.createAnimeTorrent(
-                        torrentName,
-                        magnetLink,
-                        pageURL,
-                        TorrentParser.parseResolution(torrentName),
+                    res.push(this.makeTorrentObj(
+                        name,
+                        mag,
+                        aURL,
+                        TorrentParser.parseRes(name),
                         ""
                     ));
                 }
             }
 
-            console.log("Optimized regex parsing found " + results.length + " unique torrents");
-            return results;
+            console.log("Optimized regex parsing found " + res.length + " unique torrents");
+            return res;
 
-        } catch (error) {
-            console.log("Error in optimized regex parsing: " + (error as Error).message);
+        } catch (err) {
+            console.log("Error in optimized regex parsing: " + (err as any).message);
             return [];
         }
     }
 
-    private looksLikeSoraLinkUrl(url: string): boolean {
-        return /\?[a-zA-Z0-9_=]+$/.test(url) ||
-               url.includes("otakufilmes.org") ||
-               url.includes("soralink") ||
-               url.includes("redirect") ||
-               /=[a-zA-Z0-9+/]+=*$/.test(url); // Base64-like ending
+    private isSora(url: string): boolean {
+        if (!url) return false;
+        const lUrl = url.toLowerCase();
+        
+        const excluded = [
+            "youtube.com", "google.com", "facebook.com", "twitter.com", "instagram.com", 
+            "xmlrpc.php", "wp-admin", "wp-content", "wp-includes", "/wp-json/", 
+            "wordpress.org", "schema.org", "gravatar.com", "w.org"
+        ];
+        
+        for (let i = 0; i < excluded.length; i++) {
+            if (lUrl.indexOf(excluded[i]) !== -1) return false;
+        }
+
+        if (lUrl.indexOf("otakufilmes.org") !== -1 || lUrl.indexOf("soralink") !== -1) {
+            return true;
+        }
+
+        if (lUrl.indexOf("darkmahou.io") !== -1 && lUrl.indexOf("?") !== -1 && url.length > 40) {
+            return true;
+        }
+
+        if (/[\?&][a-zA-Z0-9]{20,}/.test(url)) {
+            if (lUrl.indexOf("/?") !== -1 && lUrl.indexOf("=") === -1) return true;
+            if (/[\?&](?:token|link|id|cacha|post)=/.test(lUrl)) return true;
+        }
+
+        return false;
     }
 
-    private async attemptSoraLinkBypass(shortenedUrl: string, refererUrl?: string): Promise<string> {
+    private async tryBypass(sUrl: string, ref?: string): Promise<string> {
         try {
-            const finalUrl = await SoraLinkBypass.bypassProtectedLink(shortenedUrl, refererUrl);
-            if (finalUrl) {
-                // Try to extract magnet link from the final URL or fetch it
-                if (finalUrl.startsWith("magnet:")) {
-                    return finalUrl;
+            const final = await SoraBypass.bypass(sUrl, ref);
+            if (final) {
+                if (final.indexOf("magnet:") === 0) {
+                    return final;
                 } else {
-                    // If it's a regular URL, try fetching it to get the magnet link
-                    const pageResult = await HTTPClient.fetchWithUserAgent(finalUrl);
-                    if (pageResult.success) {
-                        const matches = pageResult.data.match(REGEX_PATTERNS.MAGNET_LINK);
-                        if (matches && matches.length > 0) {
-                            return matches[0];
+                    const fRes = await HTTPClient.fetchWithUA(final);
+                    if (fRes.success) {
+                        const m = fRes.data.match(REGEX_PATTERNS.MAGNET_LINK);
+                        if (m && m.length > 0) {
+                            return m[0];
                         }
                     }
                 }
             }
-        } catch (error) {
-            console.log("Error attempting SoraLink bypass: " + (error as Error).message);
+        } catch (err) {
+            console.log("Error attempting SoraLink bypass: " + (err as any).message);
         }
         return "";
     }
     
-    // Extract torrent name from magnet link
-    private extractTorrentNameFromMagnet(magnetLink: string, fallbackNumber: number): string {
-        const dnMatch = magnetLink.match(/&dn=([^&]+)/);
-        if (dnMatch) {
+    private getName(mag: string, fIdx: any): string {
+        const m = mag.match(/&dn=([^&]+)/);
+        if (m) {
             try {
-                return decodeURIComponent(dnMatch[1]);
+                return decodeURIComponent(m[1]);
             } catch (e) {
-                return dnMatch[1];
+                return m[1];
             }
         }
-        return "Episode " + fallbackNumber;
+        return "Episode " + fIdx;
     }
 
-    // Create AnimeTorrent object with improved type safety and validation
-    private createAnimeTorrent(
+    private makeTorrentObj(
         name: string, 
-        magnetLink: string, 
-        pageURL: string, 
-        resolution: string, 
-        episodeTitle: string
-    ) {
-        // Use type-safe parsing methods
-        const infoHash = TorrentParser.extractInfoHash(magnetLink);
-        const parsedResolution = TorrentParser.parseResolution(name) || resolution;
-        const isBatch = TorrentParser.isBatchTorrent(name, episodeTitle);
-        const episodeNumber = TorrentParser.extractEpisodeNumber(name, episodeTitle);
-        const releaseGroup = TorrentParser.extractReleaseGroup(name);
+        mag: string, 
+        aURL: string, 
+        res: string, 
+        epLabel: string
+    ): AnimeTorrent {
+        const hash = TorrentParser.extractInfoHash(mag);
+        const pRes = TorrentParser.parseRes(name) || res;
+        const batch = TorrentParser.checkIsBatch(name, epLabel);
+        const epIdx = TorrentParser.getEpIdx(name, epLabel);
+        const group = TorrentParser.extractReleaseGroup(name);
         
-        console.log(`Creating torrent: ${name} - InfoHash: ${infoHash} - MagnetLink length: ${magnetLink.length}`);
-        
-        // Use object shorthand and better typing - return type inferred from external AnimeTorrent interface
         return {
-            name,
+            name: name,
             date: new Date().toISOString(),
             size: 0,
-            formattedSize: "N/A" as const,
+            formattedSize: "N/A",
             seeders: 0,
             leechers: 0,
             downloadCount: 0,
-            link: pageURL,
-            downloadUrl: "" as const,
-            magnetLink,
-            infoHash: infoHash as string, // Cast back to string for interface compatibility
-            resolution: parsedResolution,
-            isBatch,
-            episodeNumber: episodeNumber as number, // Cast back to number for interface compatibility
-            releaseGroup,
-            isBestRelease: false as const,
-            confirmed: true as const
+            link: aURL,
+            downloadUrl: "",
+            magnetLink: mag,
+            infoHash: hash,
+            resolution: pRes,
+            isBatch: batch,
+            ["episode" + "Number"]: epIdx !== null ? epIdx : -1,
+            releaseGroup: group,
+            isBestRelease: false,
+            confirmed: true
         };
     }
 
