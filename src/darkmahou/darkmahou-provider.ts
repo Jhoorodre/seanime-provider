@@ -1190,7 +1190,7 @@ class Provider {
     // Returns the search results depending on the search options.
     async smartSearch(opts: AnimeSmartSearchOptions): Promise<AnimeTorrent[]> {
         try {
-            const query = opts.query || opts.media.romajiTitle || opts.media.englishTitle || "";
+            const query = opts.query || (opts.media as any).romajiTitle || (opts.media as any).englishTitle || "";
             const episodeNumber = opts.episodeNumber || 1;
             
             console.log("Smart search for: " + query + " - Episode: " + episodeNumber);
@@ -1233,7 +1233,7 @@ class Provider {
         if (opts.resolution) {
             filters.push((t: any) => 
                 !t.resolution || 
-                t.resolution.includes(opts.resolution!)
+                t.resolution.includes(opts.resolution)
             );
         }
         
