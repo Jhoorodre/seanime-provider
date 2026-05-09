@@ -27,8 +27,8 @@ type SimilarityScore = number & { readonly __similarity: '0-1' };
 
 // Configuration with stronger typing
 const PROVIDER_CONFIG = {
-    API_BASE_URL: "https://darkmahou.org" as const,
-    USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" as const,
+    API_BASE_URL: "https://darkmahou.io" as const,
+    USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" as const,
     MAX_EPISODE_NUMBER: 9999 as const,
     MIN_EPISODE_NUMBER: 1 as const,
     MAX_YEAR: 2000 as const,
@@ -51,7 +51,7 @@ const REGEX_PATTERNS = {
     },
     SEASON_ORDINAL: /\b(\d+)(?:st|nd|rd|th)\s+season\b/gi,
     SEASON_NUMBER: /\bseason\s+(\d+)\b/gi,
-    ANIME_PAGE_LINK: /<a[^>]+href="(https:\/\/darkmahou\.org\/[^\/]+\/)"[^>]*title="([^"]*)"[^>]*>/gi
+    ANIME_PAGE_LINK: /<a[^>]+href="(https:\/\/darkmahou\.io\/[^\/]+\/)"[^>]*title="([^"]*)"[^>]*>/gi
 } as const;
 
 const PORTUGUESE_TRANSLATIONS = {
@@ -734,16 +734,18 @@ class HTTPClient {
     // Generic HTTP client with Result type for better error handling
     static async fetchWithUserAgent<T = string>(
         url: string,
-        parser?: (response: Response) => Promise<T>
+        parser?: (response: Response) => Promise<T>,
+        headers?: Record<string, string>
     ): Promise<Result<T, { status: number; message: string }>> {
         try {
             const response = await fetch(url, {
                 headers: {
-                    "User-Agent": PROVIDER_CONFIG.USER_AGENT
+                    "User-Agent": PROVIDER_CONFIG.USER_AGENT,
+                    ...headers
                 }
             });
 
-            if (!response.ok) {
+            if (!response.ok && response.status !== 302) {
                 return {
                     success: false,
                     error: {
@@ -771,7 +773,8 @@ class HTTPClient {
     static async postFormData(
         url: string,
         payload: Record<string, string>,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        redirect?: RequestRedirect
     ): Promise<Result<Response, { status: number; message: string }>> {
         try {
             const formData = new URLSearchParams();
@@ -786,7 +789,8 @@ class HTTPClient {
                     'X-Requested-With': 'XMLHttpRequest',
                     ...headers
                 },
-                body: formData
+                body: formData,
+                redirect: redirect || 'follow'
             });
 
             return { success: true, data: response };
@@ -900,12 +904,16 @@ class SoraLinkBypass {
     private static readonly AJAX_URL = "https://otakufilmes.org/wp-admin/admin-ajax.php" as const;
     private static readonly WAIT_TIME_MS = 5000 as const;
 
-    static async bypassProtectedLink(shortenedUrl: string): Promise<string> {
+    static async bypassProtectedLink(shortenedUrl: string, refererUrl?: string): Promise<string> {
         console.log("Attempting to bypass SoraLink protection for: " + shortenedUrl);
 
         try {
-            // Step 1: Get the shortened URL page
-            const pageResult = await HTTPClient.fetchWithUserAgent(shortenedUrl);
+            // Step 1: Get the shortened URL page with referer if available
+            const pageResult = await HTTPClient.fetchWithUserAgent(
+                shortenedUrl, 
+                undefined, 
+                refererUrl ? { 'Referer': refererUrl } : undefined
+            );
             if (!pageResult.success) {
                 console.log("Failed to fetch shortened URL: " + pageResult.error.message);
                 return "";
@@ -973,7 +981,8 @@ class SoraLinkBypass {
             const postResult = await HTTPClient.postFormData(
                 this.AJAX_URL,
                 payload,
-                { 'Referer': shortenedUrl }
+                { 'Referer': shortenedUrl },
+                'manual' // Use manual redirect to catch 302
             );
 
             if (!postResult.success) {
@@ -990,6 +999,10 @@ class SoraLinkBypass {
                     console.log("Successfully bypassed SoraLink, got redirect to: " + location.substring(0, 50) + "...");
                     return location;
                 }
+            } else if (response.url && response.url !== this.AJAX_URL) {
+                // If fetch followed the redirect automatically (some environments)
+                console.log("SoraLink redirect followed automatically to: " + response.url.substring(0, 50) + "...");
+                return response.url;
             }
 
             console.log("Expected 302 redirect but got status: " + response.status);
@@ -1365,8 +1378,8 @@ class Provider {
 
             // First, check for protected/shortened links that need bypass
             const shortenerPatterns = [
-                /href=["']([^"']*\?[a-zA-Z0-9_=]+)["']/gi,  // Shortened URLs with parameters
-                /href=["'](https?:\/\/[^"']*(?:bit\.ly|tinyurl|short\.link)[^"']*)["']/gi  // Common shorteners
+                /(?:href|data-link|data-url)=["']([^"']*\?[a-zA-Z0-9_=]+)["']/gi,  // Shortened URLs with parameters
+                /(?:href|data-link|data-url)=["'](https?:\/\/[^"']*(?:bit\.ly|tinyurl|short\.link|otakufilmes\.org)[^"']*)["']/gi  // Common shorteners
             ];
 
             for (const pattern of shortenerPatterns) {
@@ -1377,7 +1390,7 @@ class Provider {
                         console.log("Found potential SoraLink protected URL: " + shortenedUrl.substring(0, 50) + "...");
 
                         // Try to bypass and extract magnet link
-                        const magnet = await this.attemptSoraLinkBypass(shortenedUrl);
+                        const magnet = await this.attemptSoraLinkBypass(shortenedUrl, pageURL);
                         if (magnet) {
                             const torrentName = this.extractTorrentNameFromMagnet(magnet, results.length + 1);
                             results.push(this.createAnimeTorrent(
@@ -1440,9 +1453,9 @@ class Provider {
                /=[a-zA-Z0-9+/]+=*$/.test(url); // Base64-like ending
     }
 
-    private async attemptSoraLinkBypass(shortenedUrl: string): Promise<string> {
+    private async attemptSoraLinkBypass(shortenedUrl: string, refererUrl?: string): Promise<string> {
         try {
-            const finalUrl = await SoraLinkBypass.bypassProtectedLink(shortenedUrl);
+            const finalUrl = await SoraLinkBypass.bypassProtectedLink(shortenedUrl, refererUrl);
             if (finalUrl) {
                 // Try to extract magnet link from the final URL or fetch it
                 if (finalUrl.startsWith("magnet:")) {
