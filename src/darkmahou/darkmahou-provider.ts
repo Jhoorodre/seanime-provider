@@ -700,9 +700,10 @@ class HTTPClient {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': '*/*',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                     ...headers
                 },
-                body: fd,
+                body: fd.toString(),
                 redirect: redir || 'follow'
             });
 
@@ -810,7 +811,7 @@ class SoraBypass {
             const response = pRes.response;
             const cookies = HTTPClient.getAllCookies(response);
             
-            const dMatch = html.match(/(?:var|const|let)\s+(?:item|soralinklite)\s*=\s*({.*?})[; \n]/s);
+            const dMatch = html.match(/(?:var|const|let)\s+(?:item|soralinklite)\s*=\s*({.*?})/s);
             if (!dMatch || !dMatch[1]) {
                 console.log("Failed to extract var item from page");
                 return "";
@@ -841,12 +842,6 @@ class SoraBypass {
 
             const action = aMatch[1];
             
-            // Format "new" field correctly for PHP backend (1 or 0)
-            const newVal = dJson["new"];
-            const newParam = (newVal === true || newVal === "true") ? "1" : 
-                             (newVal === false || newVal === "false") ? "0" : 
-                             String(newVal || "");
-
             // Payload ordering: token, id, time, post, redirect, cacha, new, link, action.
             const payload: any = {
                 "token": dJson["token"],
@@ -855,7 +850,7 @@ class SoraBypass {
                 "post": dJson["post"],
                 "redirect": dJson["redirect"],
                 "cacha": dJson["cacha"],
-                "new": newParam,
+                "new": String(dJson["new"]),
                 "link": dJson["link"],
                 "action": action
             };
