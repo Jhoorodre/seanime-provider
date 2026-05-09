@@ -617,45 +617,60 @@ class HTTPClient {
 
     static getAllCookies(res: any): string {
         if (!res || !res.headers) return "";
-        const cookies: string[] = [];
+        const cookiesMap = new Map<string, string>();
         
+        const process = (val: string) => {
+            const parts = val.split(/,(?=[^;]*=)/); 
+            parts.forEach(p => {
+                const cookiePart = p.split(';')[0].trim();
+                const eqIdx = cookiePart.indexOf('=');
+                if (eqIdx > 0) {
+                    const name = cookiePart.substring(0, eqIdx);
+                    const value = cookiePart.substring(eqIdx + 1);
+                    cookiesMap.set(name, value);
+                }
+            });
+        };
+
         if (typeof res.headers.forEach === 'function') {
             res.headers.forEach((value: string, key: string) => {
                 if (key.toLowerCase() === 'set-cookie') {
-                    // Standard fetch joins multiple Set-Cookie headers with a comma
-                    const parts = value.split(/,(?=[^;]*=)/); 
-                    parts.forEach(p => {
-                        const cookie = p.split(';')[0].trim();
-                        if (cookie) cookies.push(cookie);
-                    });
+                    process(value);
                 }
             });
         } else if (res.headers['set-cookie']) {
             const sc = res.headers['set-cookie'];
             const scArr = Array.isArray(sc) ? sc : [String(sc)];
-            scArr.forEach((c: string) => {
-                const cookie = c.split(';')[0].trim();
-                if (cookie) cookies.push(cookie);
-            });
+            scArr.forEach(process);
         }
         
-        return cookies.join('; ');
+        const result: string[] = [];
+        cookiesMap.forEach((v, k) => result.push(`${k}=${v}`));
+        return result.join('; ');
     }
 
     static async fetchWithUA(
         url: string,
         parser?: any,
-        headers?: any
+        headers?: any,
+        redir?: string
     ): Promise<any> {
         try {
             const res = await fetch(url, {
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
+                    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Connection": "keep-alive",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
                     ...headers
-                }
+                },
+                redirect: (redir as any) || 'follow'
             });
 
-            if (!res.ok && res.status !== 302) {
+            if (!res.ok && res.status !== 301 && res.status !== 302) {
                 return {
                     success: false,
                     error: {
@@ -698,6 +713,12 @@ class HTTPClient {
                 method: 'POST',
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
+                    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Connection": "keep-alive",
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-origin",
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': '*/*',
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -796,21 +817,63 @@ class SoraBypass {
         console.log("Attempting to bypass SoraLink protection for: " + sUrl);
 
         try {
-            // Initial GET request with hardcoded referer to bypass initial blocks
-            const pRes = await HTTPClient.fetchWithUA(
-                sUrl, 
-                undefined, 
-                { 'Referer': 'https://darkmahou.io/' }
-            );
-            if (!pRes.success) {
-                console.log("Failed to fetch shortened URL: " + pRes.error.message);
+            let currentUrl = sUrl;
+            const cookiesMap = new Map<string, string>();
+            let response: any;
+            let html = "";
+            
+            const getCookieHeader = () => {
+                const parts: string[] = [];
+                cookiesMap.forEach((v, k) => parts.push(`${k}=${v}`));
+                return parts.join('; ');
+            };
+
+            const updateCookies = (res: any) => {
+                const raw = HTTPClient.getAllCookies(res);
+                if (!raw) return;
+                raw.split(';').forEach(c => {
+                    const eqIdx = c.indexOf('=');
+                    if (eqIdx > 0) {
+                        const name = c.substring(0, eqIdx).trim();
+                        const val = c.substring(eqIdx + 1).trim();
+                        if (name) {
+                            cookiesMap.set(name, val);
+                        }
+                    }
+                });
+            };
+
+            // Manual redirect follow to capture all session cookies (simulating Python session)
+            for (let i = 0; i < 5; i++) {
+                const cookieHeader = getCookieHeader();
+                const pRes = await HTTPClient.fetchWithUA(
+                    currentUrl, 
+                    undefined, 
+                    { 'Referer': 'https://darkmahou.io/', 'Cookie': cookieHeader },
+                    'manual'
+                );
+                if (!pRes.success) break;
+                
+                response = pRes.response;
+                updateCookies(response);
+                
+                if (response.status === 301 || response.status === 302) {
+                    const loc = HTTPClient.getHeader(response, 'Location');
+                    if (loc) {
+                        currentUrl = loc.startsWith('http') ? loc : new URL(loc, currentUrl).href;
+                        continue;
+                    }
+                }
+                
+                html = await response.text();
+                break;
+            }
+
+            if (!html) {
+                console.log("Failed to fetch landing page content");
                 return "";
             }
 
-            const html = pRes.data;
-            const response = pRes.response;
-            const cookies = HTTPClient.getAllCookies(response);
-            
             const dMatch = html.match(/(?:var|const|let)\s+(?:item|soralinklite)\s*=\s*({.*?})/s);
             if (!dMatch || !dMatch[1]) {
                 console.log("Failed to extract var item from page");
@@ -841,8 +904,13 @@ class SoraBypass {
             }
 
             const action = aMatch[1];
+            const toPyBool = (v: any) => {
+                if (v === true) return "true";
+                if (v === false) return "false";
+                return String(v || "");
+            };
             
-            // Payload ordering: token, id, time, post, redirect, cacha, new, link, action.
+            // Payload ordering matches Python script
             const payload: any = {
                 "token": dJson["token"],
                 "id": dJson["id"],
@@ -850,20 +918,18 @@ class SoraBypass {
                 "post": dJson["post"],
                 "redirect": dJson["redirect"],
                 "cacha": dJson["cacha"],
-                "new": String(dJson["new"]),
+                "new": toPyBool(dJson["new"]),
                 "link": dJson["link"],
                 "action": action
             };
 
             console.log("Waiting 5 seconds before validation request...");
-            this.delay(this.WAIT);
+            await this.delay(this.WAIT);
 
             const postHeaders: any = { 
-                'Referer': sUrl
+                'Referer': currentUrl,
+                'Cookie': getCookieHeader()
             };
-            if (cookies) {
-                postHeaders['Cookie'] = cookies;
-            }
 
             const postRes = await HTTPClient.postForm(
                 this.AJAX_URL,
@@ -900,14 +966,11 @@ class SoraBypass {
         }
     }
 
-    private static delay(ms: any): void {
+    private static async delay(ms: number): Promise<void> {
         if (typeof $sleep !== 'undefined') {
-            $sleep(ms);
+            await ($sleep(ms) as any);
         } else {
-            const start = Date.now();
-            while (Date.now() - start < ms) {
-                // busy wait
-            }
+            return new Promise(resolve => setTimeout(resolve, ms));
         }
     }
 }
