@@ -733,7 +733,7 @@ class AnimePageExtractor {
 class HTTPClient {
     // Generic HTTP client with Result type for better error handling
     static async fetchWithUserAgent<T = string>(
-        url: string, 
+        url: string,
         parser?: (response: Response) => Promise<T>
     ): Promise<Result<T, { status: number; message: string }>> {
         try {
@@ -766,7 +766,42 @@ class HTTPClient {
             };
         }
     }
-    
+
+    // POST request with FormData payload
+    static async postFormData(
+        url: string,
+        payload: Record<string, string>,
+        headers?: Record<string, string>
+    ): Promise<Result<Response, { status: number; message: string }>> {
+        try {
+            const formData = new URLSearchParams();
+            for (const [key, value] of Object.entries(payload)) {
+                formData.append(key, value);
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    "User-Agent": PROVIDER_CONFIG.USER_AGENT,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...headers
+                },
+                body: formData
+            });
+
+            return { success: true, data: response };
+
+        } catch (error) {
+            return {
+                success: false,
+                error: {
+                    status: 0,
+                    message: error instanceof Error ? error.message : 'Unknown error'
+                }
+            };
+        }
+    }
+
     // Legacy method for backward compatibility
     static async fetchWithUserAgentLegacy(url: string): Promise<Response> {
         return fetch(url, {
@@ -775,7 +810,7 @@ class HTTPClient {
             }
         });
     }
-    
+
     static handleResponse(response: Response, context: string): boolean {
         if (!response.ok) {
             console.log(context + " failed with status: " + response.status);
@@ -857,6 +892,117 @@ class LevenshteinCalculator implements DistanceCalculator {
         const maxLen = Math.max(a.length, b.length);
         if (maxLen === 0) return 1;
         return Math.max(0, (maxLen - distance) / maxLen);
+    }
+}
+
+// SoraLink bypass handler for protected links
+class SoraLinkBypass {
+    private static readonly AJAX_URL = "https://otakufilmes.org/wp-admin/admin-ajax.php" as const;
+    private static readonly WAIT_TIME_MS = 5000 as const;
+
+    static async bypassProtectedLink(shortenedUrl: string): Promise<string> {
+        console.log("Attempting to bypass SoraLink protection for: " + shortenedUrl);
+
+        try {
+            // Step 1: Get the shortened URL page
+            const pageResult = await HTTPClient.fetchWithUserAgent(shortenedUrl);
+            if (!pageResult.success) {
+                console.log("Failed to fetch shortened URL: " + pageResult.error.message);
+                return "";
+            }
+
+            const html = pageResult.data;
+
+            // Step 2: Extract var item or soralinklite data
+            const dataMatch = html.match(/var\s+(?:item|soralinklite)\s*=\s*({.*?})/s);
+            if (!dataMatch || !dataMatch[1]) {
+                console.log("Failed to extract var item from page");
+                return "";
+            }
+
+            // Step 3: Extract soralink action token
+            const actionMatch = html.match(/"soralink_z":"(.*?)"/s);
+            if (!actionMatch || !actionMatch[1]) {
+                console.log("Failed to extract soralink_z action");
+                return "";
+            }
+
+            // Step 4: Parse JSON data
+            let dataJson: any;
+            try {
+                dataJson = JSON.parse(dataMatch[1]);
+            } catch (e) {
+                console.log("Failed to parse var item JSON: " + (e as Error).message);
+                return "";
+            }
+
+            // Step 5: Extract required fields
+            const token = dataJson["token"];
+            const id = dataJson["id"];
+            const time = dataJson["time"];
+            const post = dataJson["post"];
+            const redirect = dataJson["redirect"];
+            const cacha = dataJson["cacha"];
+            const newVal = dataJson["new"];
+            const link = dataJson["link"];
+            const action = actionMatch[1];
+
+            if (!token || !id || !time || !post || !redirect || !cacha || !link || !action) {
+                console.log("Missing required fields in extracted data");
+                return "";
+            }
+
+            // Step 6: Build payload
+            const payload: Record<string, string> = {
+                "token": token,
+                "id": id,
+                "time": time,
+                "post": post,
+                "redirect": redirect,
+                "cacha": cacha,
+                "new": newVal || "",
+                "link": link,
+                "action": action
+            };
+
+            // Step 7: Wait 5 seconds
+            console.log("Waiting 5 seconds before validation request...");
+            await this.delay(this.WAIT_TIME_MS);
+
+            // Step 8: Send POST request to AJAX endpoint
+            const postResult = await HTTPClient.postFormData(
+                this.AJAX_URL,
+                payload,
+                { 'Referer': shortenedUrl }
+            );
+
+            if (!postResult.success) {
+                console.log("POST request failed: " + postResult.error.message);
+                return "";
+            }
+
+            const response = postResult.data;
+
+            // Step 9: Check for 302 redirect and extract Location header
+            if (response.status === 302) {
+                const location = response.headers.get("Location");
+                if (location) {
+                    console.log("Successfully bypassed SoraLink, got redirect to: " + location.substring(0, 50) + "...");
+                    return location;
+                }
+            }
+
+            console.log("Expected 302 redirect but got status: " + response.status);
+            return "";
+
+        } catch (error) {
+            console.log("Error in SoraLink bypass: " + (error as Error).message);
+            return "";
+        }
+    }
+
+    private static delay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 
@@ -1177,12 +1323,12 @@ class Provider {
     }
 
     // Optimized torrent parsing using only regex (LoadDoc removed due to consistent failures)
-    private parseTorrentsFromHTML(html: string, pageURL: string): AnimeTorrent[] {
+    private async parseTorrentsFromHTML(html: string, pageURL: string): Promise<AnimeTorrent[]> {
         const startTime = Date.now();
-        
+
         try {
             console.log("Parsing torrents from HTML using optimized regex...");
-            
+
             // Check cache first
             const cacheKey = `torrents_${pageURL}`;
             const cached = PerformanceCache.get<AnimeTorrent[]>(cacheKey);
@@ -1191,52 +1337,82 @@ class Provider {
                 PerformanceCache.recordParseTime(Date.now() - startTime);
                 return cached;
             }
-            
-            const results = this.parseWithOptimizedRegex(html, pageURL);
-            
+
+            const results = await this.parseWithOptimizedRegex(html, pageURL);
+
             // Cache successful results
             if (results.length > 0) {
                 PerformanceCache.set(cacheKey, results);
             }
-            
+
             PerformanceCache.recordParseTime(Date.now() - startTime);
             return results;
-            
+
         } catch (error) {
             console.log("Error parsing torrents: " + (error as Error).message);
             PerformanceCache.recordParseTime(Date.now() - startTime);
             return [];
         }
     }
-    
+
 
     // Optimized regex parsing (primary method, LoadDoc removed)
-    private parseWithOptimizedRegex(html: string, pageURL: string): AnimeTorrent[] {
+    private async parseWithOptimizedRegex(html: string, pageURL: string): Promise<AnimeTorrent[]> {
         const results: AnimeTorrent[] = [];
-        
+
         try {
             console.log("Using optimized regex to find magnet links...");
-            
+
+            // First, check for protected/shortened links that need bypass
+            const shortenerPatterns = [
+                /href=["']([^"']*\?[a-zA-Z0-9_=]+)["']/gi,  // Shortened URLs with parameters
+                /href=["'](https?:\/\/[^"']*(?:bit\.ly|tinyurl|short\.link)[^"']*)["']/gi  // Common shorteners
+            ];
+
+            for (const pattern of shortenerPatterns) {
+                let match;
+                while ((match = pattern.exec(html)) !== null) {
+                    const shortenedUrl = match[1];
+                    if (this.looksLikeSoraLinkUrl(shortenedUrl)) {
+                        console.log("Found potential SoraLink protected URL: " + shortenedUrl.substring(0, 50) + "...");
+
+                        // Try to bypass and extract magnet link
+                        const magnet = await this.attemptSoraLinkBypass(shortenedUrl);
+                        if (magnet) {
+                            const torrentName = this.extractTorrentNameFromMagnet(magnet, results.length + 1);
+                            results.push(this.createAnimeTorrent(
+                                torrentName,
+                                magnet,
+                                pageURL,
+                                TorrentParser.parseResolution(torrentName),
+                                ""
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Then try direct magnet link extraction
             const magnetMatches = html.match(REGEX_PATTERNS.MAGNET_LINK);
-            
+
             if (magnetMatches && magnetMatches.length > 0) {
                 console.log("Found " + magnetMatches.length + " magnet links in page");
-                
+
                 // Process magnet links with deduplication
                 const seenInfoHashes = new Set<string>();
-                
+
                 for (let i = 0; i < magnetMatches.length; i++) {
                     const magnetLink = magnetMatches[i];
-                    
+
                     // Skip duplicates based on info hash
                     const infoHash = TorrentParser.extractInfoHash(magnetLink);
                     if (infoHash && seenInfoHashes.has(infoHash)) {
                         continue;
                     }
                     if (infoHash) seenInfoHashes.add(infoHash);
-                    
-                    const torrentName = this.extractTorrentNameFromMagnet(magnetLink, i + 1);
-                    
+
+                    const torrentName = this.extractTorrentNameFromMagnet(magnetLink, results.length + 1);
+
                     results.push(this.createAnimeTorrent(
                         torrentName,
                         magnetLink,
@@ -1246,14 +1422,46 @@ class Provider {
                     ));
                 }
             }
-            
+
             console.log("Optimized regex parsing found " + results.length + " unique torrents");
             return results;
-            
+
         } catch (error) {
             console.log("Error in optimized regex parsing: " + (error as Error).message);
             return [];
         }
+    }
+
+    private looksLikeSoraLinkUrl(url: string): boolean {
+        return /\?[a-zA-Z0-9_=]+$/.test(url) ||
+               url.includes("otakufilmes.org") ||
+               url.includes("soralink") ||
+               url.includes("redirect") ||
+               /=[a-zA-Z0-9+/]+=*$/.test(url); // Base64-like ending
+    }
+
+    private async attemptSoraLinkBypass(shortenedUrl: string): Promise<string> {
+        try {
+            const finalUrl = await SoraLinkBypass.bypassProtectedLink(shortenedUrl);
+            if (finalUrl) {
+                // Try to extract magnet link from the final URL or fetch it
+                if (finalUrl.startsWith("magnet:")) {
+                    return finalUrl;
+                } else {
+                    // If it's a regular URL, try fetching it to get the magnet link
+                    const pageResult = await HTTPClient.fetchWithUserAgent(finalUrl);
+                    if (pageResult.success) {
+                        const matches = pageResult.data.match(REGEX_PATTERNS.MAGNET_LINK);
+                        if (matches && matches.length > 0) {
+                            return matches[0];
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.log("Error attempting SoraLink bypass: " + (error as Error).message);
+        }
+        return "";
     }
     
     // Extract torrent name from magnet link
