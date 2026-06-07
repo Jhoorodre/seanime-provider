@@ -117,11 +117,17 @@ class Provider {
             // A API retorna o array de obras dentro da chave "data"
             const obras = Array.isArray(data) ? data : (data.data || []);
             
-            console.log(`Buscando por '${opts.query}' -> Encontrou ${obras.length} resultados no site.`);
+            // Filtra as obras para não exibir "Novels" (apenas Comic, Manga, Manhwa, etc)
+            const mangasOnly = obras.filter((obra: any) => {
+                const formato = obra.formato?.nome?.toLowerCase() || "";
+                return !formato.includes("novel");
+            });
+            
+            console.log(`Buscando por '${opts.query}' -> Encontrou ${mangasOnly.length} mangás/comics (de ${obras.length} totais).`);
             
             const tKey = "ti" + "tle";
 
-            return obras.map((obra: any) => ({
+            return mangasOnly.map((obra: any) => ({
                 id: obra.id.toString(),
                 [tKey]: obra.nome || obra.titulo || "",
                 synonyms: [obra.nome || ""],
@@ -153,11 +159,10 @@ class Provider {
             if (!response.ok) return [];
 
             const data = await response.json();
-            const capitulos = data.capitulos || [];
+            const todosCapitulos = data.capitulos || [];
             
-            if (capitulos.length > 0) {
-                console.log("JSON CRU DO PRIMEIRO CAPÍTULO:", JSON.stringify(capitulos[0]));
-            }
+            // Filtra para mostrar apenas capítulos do tipo "imagem" (ignora os de "texto" das novels)
+            const capitulos = todosCapitulos.filter((cap: any) => cap.cap_tipo === "imagem");
             
             const tKey = "ti" + "tle";
             const nKey = "num" + "ber";
