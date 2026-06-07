@@ -162,14 +162,26 @@ class Provider {
             const tKey = "ti" + "tle";
             const nKey = "num" + "ber";
 
-            return capitulos.map((cap: any, index: number) => ({
-                id: `${mangaId}|${cap.cap_id}`,
-                url: `${this.baseUrl}/capitulo/${cap.cap_id}`,
-                [tKey]: cap.cap_nome ? `Capítulo ${cap.cap_num} - ${cap.cap_nome}` : `Capítulo ${cap.cap_num}`,
-                chapter: cap.cap_num.toString(),
-                index: index,
-                language: "pt-BR"
-            } as any));
+            return capitulos.map((cap: any, index: number) => {
+                let title = `Capítulo ${cap.cap_num}`;
+                if (cap.cap_nome && cap.cap_nome.toString().trim() !== cap.cap_num.toString().trim()) {
+                    let nome = cap.cap_nome.toString().trim();
+                    if (nome.toLowerCase().startsWith("capítulo") || nome.toLowerCase().startsWith("capitulo")) {
+                        title = nome;
+                    } else {
+                        title = `${title} - ${nome}`;
+                    }
+                }
+
+                return {
+                    id: `${mangaId}|${cap.cap_id}`,
+                    url: `${this.baseUrl}/capitulo/${cap.cap_id}`,
+                    [tKey]: title,
+                    chapter: cap.cap_num.toString(),
+                    index: index,
+                    language: "pt-BR"
+                } as any;
+            });
 
         } catch (error) {
             console.error("findChapters failed:", error);
