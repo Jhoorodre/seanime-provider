@@ -150,6 +150,16 @@ class Provider {
             size = parseInt(torrent.sizeBytes, 10)
         }
 
+        // TorrentClaw API pode retornar torrentUrl como caminho relativo ou magnetUrl.
+        let tUrl = torrent.torrentUrl || ""
+        if (tUrl && !tUrl.startsWith("http")) {
+            tUrl = `https://torrentclaw.com${tUrl.startsWith("/") ? "" : "/"}${tUrl}`
+        }
+
+        const magnet = torrent.magnetUrl || (torrent.infoHash ? `magnet:?xt=urn:btih:${torrent.infoHash}` : "")
+        // O Seanime exige o campo "link". Se tUrl não existir, usamos o magnet.
+        const finalLink = tUrl || magnet || ""
+
         return {
             name: torrent.rawTitle || "",
             date: torrent.uploadedAt || new Date().toISOString(),
@@ -158,9 +168,9 @@ class Provider {
             seeders: torrent.seeders || 0,
             leechers: torrent.leechers || 0,
             downloadCount: 0,
-            link: torrent.torrentUrl || "",
-            downloadUrl: torrent.torrentUrl || "",
-            magnetLink: torrent.magnetUrl || "",
+            link: finalLink,
+            downloadUrl: tUrl,
+            magnetLink: magnet,
             infoHash: torrent.infoHash || "",
             resolution: torrent.quality || "",
             isBatch: false,
