@@ -94,12 +94,14 @@ class Provider {
         if (this.apiKey && !this.apiKey.startsWith("{{")) {
             furl += `&api_key=${encodeURIComponent(this.apiKey)}`
         }
-        if (this.audioLang && !this.audioLang.startsWith("{{")) {
-            furl += `&lang=${encodeURIComponent(this.audioLang)}`
+        if (this.audioLang && this.audioLang !== "any" && !this.audioLang.startsWith("{{")) {
+            furl += `&audio=${this.audioLang}`
         }
-        if (this.subsLang && !this.subsLang.startsWith("{{")) {
-            furl += `&subs=${encodeURIComponent(this.subsLang)}`
+
+        if (this.subsLang && this.subsLang !== "any" && !this.subsLang.startsWith("{{")) {
+            furl += `&subs=${this.subsLang}`
         }
+
         if (this.verifiedOnly) {
             furl += `&verified=true`
         }
