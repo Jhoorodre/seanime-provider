@@ -44,6 +44,12 @@ class Provider {
             query += `&type=show`
         }
 
+        // Se for smartsearch de um episódio específico, forçar a busca na API usando season=1 e episode=X
+        if (opts.episodeNumber > 0 && opts.media.format !== "MOVIE") {
+            // O Seanime não manda o season explicitamente, mas para a maioria dos animes será 1
+            query += `&season=1&episode=${opts.episodeNumber}`
+        }
+
         if (opts.resolution) {
             query += `&quality=${encodeURIComponent(this.formatQuality(opts.resolution))}`
         }
