@@ -132,7 +132,7 @@ class Provider {
             return animeTorrents
         }
         catch (error) {
-            throw new Error(`Error fetching torrents: ${error}`)
+            return []
         }
     }
 
@@ -151,7 +151,7 @@ class Provider {
         }
 
         return {
-            name: torrent.rawTitle,
+            name: torrent.rawTitle || "",
             date: torrent.uploadedAt || new Date().toISOString(),
             size: size,
             formattedSize: "",
