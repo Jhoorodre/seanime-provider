@@ -75,7 +75,8 @@ class Provider {
             if (href) {
                 // Parse episode number
                 // "Boku no Hero Academia - Episódio 1 - FINAL" -> 1
-                const match = epTitle.match(/Episódio\s*(\d+(?:\.\d+)?)/i)
+                // "Yomi no Tsugai ep 11" -> 11
+                const match = epTitle.match(/(?:Episódio|Ep|Episode)\s*(\d+(?:\.\d+)?)/i)
                 const number = match ? parseFloat(match[1]) : 0
 
                 results.push({
