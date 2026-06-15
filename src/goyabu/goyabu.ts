@@ -232,6 +232,18 @@ class Provider {
                     });
                 }
             }
+
+            // Filter to only keep 1080p and 720p as requested
+            result.videoSources = result.videoSources.filter(v => v.quality === "1080p" || v.quality === "720p");
+
+            const qualityMap: Record<string, number> = {
+                "1080p": 1080,
+                "720p": 720,
+                "360p": 360,
+                "240p": 240,
+                "Unknown": 0
+            };
+            result.videoSources.sort((a, b) => qualityMap[b.quality] - qualityMap[a.quality]);
         } catch (e) {
             console.error("Failed to extract videos from blogger", e)
         }
