@@ -148,13 +148,19 @@ class Provider {
                             }
                         }
                         
-                        const fileMatch = unpacked.match(/file\\s*:\\s*["']([^"']+\\.m3u8[^"']*)["']/)
+                        const fileMatch = unpacked.match(/file\s*:\s*["']([^"']+\.m3u8[^"']*)["']/)
                         if (fileMatch) {
+                            const origin = "https://" + url.split("/")[2]
                             result.videoSources.push({
                                 url: fileMatch[1],
                                 quality: quality,
                                 type: "m3u8",
-                                headers: {}
+                                headers: {
+                                    "Referer": url,
+                                    "Origin": origin,
+                                    "User-Agent": this.headers["User-Agent"],
+                                    "Accept": "*/*"
+                                }
                             })
                         }
                     }
@@ -169,11 +175,17 @@ class Provider {
             const body = await req.text()
             const match = body.match(/var\s+urlPlay\s*=\s*['"]([^'"]+)['"]/)
             if (match) {
+                const origin = "https://" + url.split("/")[2]
                 result.videoSources.push({
                     url: match[1],
                     quality: quality,
                     type: "m3u8",
-                    headers: {}
+                    headers: {
+                        "Referer": url,
+                        "Origin": origin,
+                        "User-Agent": this.headers["User-Agent"],
+                        "Accept": "*/*"
+                    }
                 })
                 return true
             }
@@ -193,11 +205,17 @@ class Provider {
             const match = body.match(/"streaming_url"\s*:\s*"([^"]+)"/)
             if (match) {
                 const streamUrl = match[1].replace(/\\/g, "")
+                const origin = "https://" + url.split("/")[2]
                 result.videoSources.push({
                     url: streamUrl,
                     quality: quality,
                     type: "m3u8",
-                    headers: {}
+                    headers: {
+                        "Referer": url,
+                        "Origin": origin,
+                        "User-Agent": this.headers["User-Agent"],
+                        "Accept": "*/*"
+                    }
                 })
                 return true
             }
