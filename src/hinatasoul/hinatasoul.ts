@@ -118,34 +118,24 @@ class Provider {
 
         const match = html.match(/foodiesbrazil\.info\/filez5\.php\?t=([^"'\s]+)/i)
         if (!match) return result
-        
-        const token = match[1]
-        console.log("HinataSoul token:", token.substring(0, 20) + "...")
+         const token = match[1]
         const fetchHeaders = {
             "referer": "https://www.hinatasoul.com",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
 
-
         try {
             await fetch(`https://foodiesbrazil.info/filez5.php?t=${token}`, { headers: fetchHeaders })
             await fetch(`https://ondeviajar.online/data15.php?token=${token}`, { headers: fetchHeaders })
-        } catch (e) {
-            console.log("Error in token activation chain:", e)
-        }
+        } catch (e) {}
 
         const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: fetchHeaders })
         const coemHtml = await coemReq.text()
-        console.log("coempregos HTML length:", coemHtml.length)
         
         const urlMatch = coemHtml.match(/url=([^&"']+)/i)
-        if (!urlMatch) {
-            console.log("Failed to match URL in coempregos HTML. Snippet:", coemHtml.substring(0, 200))
-            return result
-        }
+        if (!urlMatch) return result
         
         let baseR2Url = decodeURIComponent(urlMatch[1])
-        console.log("Base R2 URL:", baseR2Url)
         
         const qualities = ["appsd", "apphd", "fful"]
         const labels = ["480p", "720p", "1080p"]
@@ -155,7 +145,6 @@ class Provider {
                 const vidUrl = baseR2Url.replace(/\/(fiphonec|appsd|apphd|fful|iphonec)\//i, `/${q}/`)
                 const getApiUrl = `https://ads.animeyabu.net/adblock2.php?token=undefined&url=${encodeURIComponent(vidUrl)}`
                 
-                console.log(`Fetching signature for ${q}...`)
                 const getReq = await fetch(getApiUrl, {
                     headers: { 
                         'referer': 'https://www.anitube22.vip/',
@@ -164,24 +153,19 @@ class Provider {
                 })
                 
                 const responseText = await getReq.text()
-                console.log(`AnimeYabu response for ${q}:`, responseText.substring(0, 100))
-                
                 const getJson = JSON.parse(responseText)
                 const signature = getJson[0]?.publicidade
                 
                 if (signature && signature !== "undefined") {
-                    console.log(`Successfully obtained signature for ${q}`)
                     return {
                         url: vidUrl + signature,
                         quality: labels[i],
                         type: "mp4"
                     }
                 }
-            } catch (e) {
-                console.log(`Error processing ${q}:`, e)
-            }
+            } catch (e) {}
             return null
-        }))
+        }))     }))
         
         result.videoSources = sources.filter(s => s !== null) as VideoSource[]
         result.videoSources.reverse()
