@@ -148,9 +148,9 @@ class Provider {
 
     async extractTurbovid(url: string, result: EpisodeServer, quality: string) {
         try {
-            const req = await fetch(url, { headers: { "Referer": this.api } })
+            const req = await fetch(url, { headers: { "Referer": this.api, "User-Agent": this.headers["User-Agent"] } })
             const body = await req.text()
-            const match = body.match(/var\\s+urlPlay\\s*=\\s*['"]([^'"]+)['"]/)
+            const match = body.match(/var\s+urlPlay\s*=\s*['"]([^'"]+)['"]/)
             if (match) {
                 result.videoSources.push({
                     url: match[1],
@@ -158,28 +158,36 @@ class Provider {
                     type: "m3u8",
                     headers: {}
                 })
+                return true
             }
         } catch (e) {}
+        // Fallback
+        result.videoSources.push({ url: url, quality: quality, type: "mp4", headers: this.headers })
+        return false
     }
 
     async extractStrmup(url: string, result: EpisodeServer, quality: string) {
         try {
             const parts = url.split("/")
             const id = parts[parts.length - 1]
-            const req = await fetch(`https://strmup.to/ajax/stream?filecode=${id}`, { headers: { "Referer": this.api } })
+            const req = await fetch(`https://strmup.to/ajax/stream?filecode=${id}`, { headers: { "Referer": this.api, "User-Agent": this.headers["User-Agent"] } })
             const body = await req.text()
             
             const match = body.match(/"streaming_url"\s*:\s*"([^"]+)"/)
             if (match) {
-                const streamUrl = match[1].replace(/\\\\/g, "")
+                const streamUrl = match[1].replace(/\\/g, "")
                 result.videoSources.push({
                     url: streamUrl,
                     quality: quality,
                     type: "m3u8",
                     headers: {}
                 })
+                return true
             }
         } catch (e) {}
+        // Fallback
+        result.videoSources.push({ url: url, quality: quality, type: "mp4", headers: this.headers })
+        return false
     }
 
     async findEpisodeServer(episode: EpisodeDetails | any, _server: string): Promise<EpisodeServer> {
@@ -227,6 +235,13 @@ class Provider {
                             extractPromises.push(this.extractTurbovid(iframeUrl, result, quality))
                         } else if (iframeUrl.includes("strmup.to")) {
                             extractPromises.push(this.extractStrmup(iframeUrl, result, quality))
+                        } else {
+                            result.videoSources.push({
+                                url: iframeUrl,
+                                quality: quality,
+                                type: "mp4",
+                                headers: this.headers
+                            })
                         }
                     }
                 } catch(e) {}
