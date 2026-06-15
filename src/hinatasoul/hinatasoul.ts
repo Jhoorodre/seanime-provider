@@ -10,7 +10,8 @@ class Provider {
 
     getSettings(): Settings {
         return {
-            episodeServers: ["HinataSoul"]
+            episodeServers: ["HinataSoul"],
+            supportsDub: true
         }
     }
 
