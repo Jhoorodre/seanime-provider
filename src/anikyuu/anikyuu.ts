@@ -30,12 +30,17 @@ class Provider {
             let title = a.attr("title") || el.find(".tt h2").text() || el.find(".tt").text() || ""
             
             if (href && title) {
-                title = title.replace(/\\t|\\n/g, " ").replace(/\\s+/g, " ").trim()
+                title = title.replace(/\t|\n/g, " ").replace(/\s+/g, " ").trim()
+                const isDub = title.toLowerCase().includes("dublado")
+                
+                // Remove "Dublado" para o Seanime conseguir dar match exato no nome do anime
+                title = title.replace(/dublado/i, "").replace(/\(\s*\)/g, "").replace(/\-\s*$/, "").trim()
+                
                 results.push({
                     id: href.replace(this.api, ""), // remove domain
                     title: title,
                     url: href,
-                    subOrDub: title.toLowerCase().includes("dublado") ? "dub" : "sub",
+                    subOrDub: isDub ? "dub" : "sub",
                 })
             }
         })
