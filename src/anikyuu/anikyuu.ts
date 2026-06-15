@@ -33,8 +33,11 @@ class Provider {
                 title = title.replace(/\t|\n/g, " ").replace(/\s+/g, " ").trim()
                 const isDub = title.toLowerCase().includes("dublado")
                 
-                // Remove "Dublado" para o Seanime conseguir dar match exato no nome do anime
+                // Remove "Dublado" e formata no padrão (Dub) que o Seanime entende nativamente
                 title = title.replace(/dublado/i, "").replace(/\(\s*\)/g, "").replace(/\-\s*$/, "").trim()
+                if (isDub) {
+                    title = title + " (Dub)"
+                }
                 
                 results.push({
                     id: href.replace(this.api, ""), // remove domain
