@@ -165,7 +165,7 @@ class Provider {
                 }
             } catch (e) {}
             return null
-        }))     }))
+        }))
         
         result.videoSources = sources.filter(s => s !== null) as VideoSource[]
         result.videoSources.reverse()
