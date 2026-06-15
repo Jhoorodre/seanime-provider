@@ -121,7 +121,12 @@ class Provider {
         
         const token = match[1]
         console.log("HinataSoul token:", token.substring(0, 20) + "...")
-        const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: this.headers })
+        const fetchHeaders = {
+            "referer": "https://www.hinatasoul.com",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        
+        const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: fetchHeaders })
         const coemHtml = await coemReq.text()
         console.log("coempregos HTML length:", coemHtml.length)
         
@@ -145,8 +150,8 @@ class Provider {
                 console.log(`Fetching signature for ${q}...`)
                 const getReq = await fetch(getApiUrl, {
                     headers: { 
-                        'Referer': 'https://www.anitube22.vip/',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                        'referer': 'https://www.anitube22.vip/',
+                        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                     }
                 })
                 
