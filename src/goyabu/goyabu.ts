@@ -97,7 +97,10 @@ class Provider {
         
         const result: EpisodeServer = {
             server: "Blogger",
-            headers: {},
+            headers: {
+                "Referer": "https://www.blogger.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+            },
             videoSources: []
         }
 
@@ -188,7 +191,8 @@ class Provider {
                 body: rpcBody,
                 headers: {
                     "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-                    "Referer": "https://www.blogger.com/"
+                    "Referer": "https://www.blogger.com/",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
                 }
             });
             const rpcString = await rpcReq.text();
