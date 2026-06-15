@@ -116,39 +116,44 @@ class Provider {
             videoSources: []
         }
 
-        const match = html.match(/foodiesbrazil\.info\/filez5\.php\?t=([^"'\s]+)/i)
-        if (!match) return result
-         const token = match[1]
-        const fetchHeaders = {
-            "referer": "https://www.hinatasoul.com",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        }
+        const tokenMatches = [...html.matchAll(/foodiesbrazil\.info\/filez5\.php\?t=([^"'\s]+)/ig)]
+        if (tokenMatches.length === 0) return result
+        
+        // Remove duplicate tokens
+        const tokens = [...new Set(tokenMatches.map(m => m[1]))]
 
-        try {
-            await fetch(`https://foodiesbrazil.info/filez5.php?t=${token}`, { headers: fetchHeaders })
-            await fetch(`https://ondeviajar.online/data15.php?token=${token}`, { headers: fetchHeaders })
-        } catch (e) {}
-
-        const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: fetchHeaders })
-        const coemHtml = await coemReq.text()
-        
-        const urlMatch = coemHtml.match(/url=([^&"']+)/i)
-        if (!urlMatch) return result
-        
-        let baseR2Url = decodeURIComponent(urlMatch[1])
-        
-        const qualities = ["appsd", "apphd", "fful"]
-        const labels = ["480p", "720p", "1080p"]
-        
-        const sources = await Promise.all(qualities.map(async (q, i) => {
+        const sources = await Promise.all(tokens.map(async (token) => {
             try {
-                const vidUrl = baseR2Url.replace(/\/(fiphonec|appsd|apphd|fful|iphonec)\//i, `/${q}/`)
+                const fetchHeaders = {
+                    "referer": "https://www.hinatasoul.com",
+                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                }
+
+                try {
+                    await fetch(`https://foodiesbrazil.info/filez5.php?t=${token}`, { headers: fetchHeaders })
+                    await fetch(`https://ondeviajar.online/data15.php?token=${token}`, { headers: fetchHeaders })
+                } catch (e) {}
+
+                const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: fetchHeaders })
+                const coemHtml = await coemReq.text()
+                
+                const urlMatch = coemHtml.match(/url=([^&"']+)/i)
+                if (!urlMatch) return null
+                
+                let vidUrl = decodeURIComponent(urlMatch[1])
+                
+                // Determine quality based on path
+                let quality = "Unknown"
+                if (vidUrl.includes("/fful/")) quality = "1080p"
+                else if (vidUrl.includes("/apphd/") || vidUrl.includes("/f333/")) quality = "720p"
+                else if (vidUrl.includes("/appsd/") || vidUrl.includes("/fiphonec/") || vidUrl.includes("/iphonec/")) quality = "480p"
+                
                 const getApiUrl = `https://ads.animeyabu.net/adblock2.php?token=undefined&url=${encodeURIComponent(vidUrl)}`
                 
                 const getReq = await fetch(getApiUrl, {
                     headers: { 
                         'referer': 'https://www.anitube22.vip/',
-                        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                        'user-agent': fetchHeaders['user-agent']
                     }
                 })
                 
@@ -159,16 +164,22 @@ class Provider {
                 if (signature && signature !== "undefined") {
                     return {
                         url: vidUrl + signature,
-                        quality: labels[i],
+                        quality: quality,
                         type: "mp4"
-                    }
+                    } as VideoSource
                 }
             } catch (e) {}
             return null
         }))
         
-        result.videoSources = sources.filter(s => s !== null) as VideoSource[]
-        result.videoSources.reverse()
+        result.videoSources = sources.filter(s => s !== null && s.quality !== "Unknown") as VideoSource[]
+        
+        // Sort by quality (1080p > 720p > 480p)
+        result.videoSources.sort((a, b) => {
+            const qA = parseInt(a.quality.replace("p", "")) || 0
+            const qB = parseInt(b.quality.replace("p", "")) || 0
+            return qB - qA
+        })
 
         return result
     }
