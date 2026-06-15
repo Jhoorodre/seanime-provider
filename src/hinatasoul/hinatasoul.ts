@@ -103,7 +103,11 @@ class Provider {
             targetUrl = `${this.api}${targetUrl.startsWith("/") ? "" : "/"}${targetUrl}`;
         }
 
-        const req = await fetch(targetUrl, { headers: this.headers })
+        const targetUrlWithCacheBuster = targetUrl.includes("?") 
+            ? `${targetUrl}&_t=${Date.now()}` 
+            : `${targetUrl}?_t=${Date.now()}`
+
+        const req = await fetch(targetUrlWithCacheBuster, { headers: this.headers })
         const html = await req.text()
 
         const result: EpisodeServer = {
