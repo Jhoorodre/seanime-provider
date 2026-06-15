@@ -134,7 +134,10 @@ class Provider {
                 // Surprisingly, the animeyabu backend doesn't validate the token!
                 // Passing 'undefined' directly returns the signed AWS url.
                 const getReq = await fetch(`https://ads.animeyabu.net/adblock2.php?token=undefined&url=${vidUrl}`, {
-                    headers: { 'Referer': 'https://www.anitube22.vip/' }
+                    headers: { 
+                        'Referer': 'https://www.anitube22.vip/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                    }
                 })
                 const getJson = await getReq.json()
                 const signature = getJson[0].publicidade
