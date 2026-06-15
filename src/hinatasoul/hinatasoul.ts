@@ -116,13 +116,19 @@ class Provider {
         if (!match) return result
         
         const token = match[1]
+        console.log("HinataSoul token:", token.substring(0, 20) + "...")
         const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: this.headers })
         const coemHtml = await coemReq.text()
+        console.log("coempregos HTML length:", coemHtml.length)
         
         const urlMatch = coemHtml.match(/url=([^&"']+)/i)
-        if (!urlMatch) return result
+        if (!urlMatch) {
+            console.log("Failed to match URL in coempregos HTML. Snippet:", coemHtml.substring(0, 200))
+            return result
+        }
         
         let baseR2Url = decodeURIComponent(urlMatch[1])
+        console.log("Base R2 URL:", baseR2Url)
         
         const qualities = ["appsd", "apphd", "fful"]
         const labels = ["480p", "720p", "1080p"]
@@ -130,26 +136,33 @@ class Provider {
         const sources = await Promise.all(qualities.map(async (q, i) => {
             try {
                 const vidUrl = baseR2Url.replace(/\/(fiphonec|appsd|apphd|fful|iphonec)\//i, `/${q}/`)
+                const getApiUrl = `https://ads.animeyabu.net/adblock2.php?token=undefined&url=${encodeURIComponent(vidUrl)}`
                 
-                // Surprisingly, the animeyabu backend doesn't validate the token!
-                // Passing 'undefined' directly returns the signed AWS url.
-                const getReq = await fetch(`https://ads.animeyabu.net/adblock2.php?token=undefined&url=${vidUrl}`, {
+                console.log(`Fetching signature for ${q}...`)
+                const getReq = await fetch(getApiUrl, {
                     headers: { 
                         'Referer': 'https://www.anitube22.vip/',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                     }
                 })
-                const getJson = await getReq.json()
-                const signature = getJson[0].publicidade
+                
+                const responseText = await getReq.text()
+                console.log(`AnimeYabu response for ${q}:`, responseText.substring(0, 100))
+                
+                const getJson = JSON.parse(responseText)
+                const signature = getJson[0]?.publicidade
                 
                 if (signature && signature !== "undefined") {
+                    console.log(`Successfully obtained signature for ${q}`)
                     return {
                         url: vidUrl + signature,
                         quality: labels[i],
                         type: "mp4"
                     }
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.log(`Error processing ${q}:`, e)
+            }
             return null
         }))
         
