@@ -150,17 +150,14 @@ class Provider {
                         
                         const fileMatch = unpacked.match(/file\s*:\s*["']([^"']+\.m3u8[^"']*)["']/)
                         if (fileMatch) {
-                            const origin = "https://" + url.split("/")[2]
+                            result.headers = {
+                                "Referer": url,
+                                "User-Agent": this.headers["User-Agent"]
+                            }
                             result.videoSources.push({
                                 url: fileMatch[1],
                                 quality: quality,
-                                type: "m3u8",
-                                headers: {
-                                    "Referer": url,
-                                    "Origin": origin,
-                                    "User-Agent": this.headers["User-Agent"],
-                                    "Accept": "*/*"
-                                }
+                                type: "m3u8"
                             })
                         }
                     }
@@ -175,17 +172,15 @@ class Provider {
             const body = await req.text()
             const match = body.match(/var\s+urlPlay\s*=\s*['"]([^'"]+)['"]/)
             if (match) {
-                const origin = "https://" + url.split("/")[2]
+                // Seta os headers corretos no EpisodeServer pai para o proxy do Seanime
+                result.headers = {
+                    "Referer": url,
+                    "User-Agent": this.headers["User-Agent"]
+                }
                 result.videoSources.push({
                     url: match[1],
                     quality: quality,
-                    type: "m3u8",
-                    headers: {
-                        "Referer": url,
-                        "Origin": origin,
-                        "User-Agent": this.headers["User-Agent"],
-                        "Accept": "*/*"
-                    }
+                    type: "m3u8"
                 })
                 return true
             }
@@ -205,17 +200,14 @@ class Provider {
             const match = body.match(/"streaming_url"\s*:\s*"([^"]+)"/)
             if (match) {
                 const streamUrl = match[1].replace(/\\/g, "")
-                const origin = "https://" + url.split("/")[2]
+                result.headers = {
+                    "Referer": url,
+                    "User-Agent": this.headers["User-Agent"]
+                }
                 result.videoSources.push({
                     url: streamUrl,
                     quality: quality,
-                    type: "m3u8",
-                    headers: {
-                        "Referer": url,
-                        "Origin": origin,
-                        "User-Agent": this.headers["User-Agent"],
-                        "Accept": "*/*"
-                    }
+                    type: "m3u8"
                 })
                 return true
             }
@@ -246,10 +238,19 @@ class Provider {
         }
 
         const options = $("select.mirror option")
-        
+
         const extractPromises = []
         for (let i = 0; i < options.length(); i++) {
             const el = options.eq(i)
+            
+            const name = el.text().trim().toLowerCase()
+            // Filtra pelo servidor selecionado pelo usuário no Seanime (se houver)
+            if (_server && _server.toLowerCase() !== "anikyuu" && _server.toLowerCase() !== "auto") {
+                if (!name.includes(_server.toLowerCase())) {
+                    continue; // Pula servidores que não sejam o escolhido
+                }
+            }
+
             const b64 = el.attr("value")
             if (b64) {
                 try {
@@ -260,12 +261,11 @@ class Provider {
                     if (srcMatch) {
                         const iframeUrl = srcMatch[1]
                         let quality = "Auto"
-                        const name = el.text().trim().toLowerCase()
                         if (name.includes("fhd") || name.includes("1080")) quality = "1080p"
                         else if (name.includes("hd") || name.includes("720")) quality = "720p"
                         else if (name.includes("sd") || name.includes("480")) quality = "480p"
                         
-                        if (iframeUrl.includes("filemoon")) {
+                        if (iframeUrl.includes("filemoon") || iframeUrl.includes("bysela")) {
                             extractPromises.push(this.extractFilemoon(iframeUrl, result, quality))
                         } else if (iframeUrl.includes("turbovidhls.com") || iframeUrl.includes("turbovid")) {
                             extractPromises.push(this.extractTurbovid(iframeUrl, result, quality))
@@ -294,7 +294,7 @@ class Provider {
             for (let i = 0; i < embeds.length(); i++) {
                 const el = embeds.eq(i)
                 const src = el.attr("src")
-                if (src && src.includes("filemoon")) {
+                if (src && (src.includes("filemoon") || src.includes("bysela"))) {
                     embedPromises.push(this.extractFilemoon(src, result, "Auto"))
                 }
             }
