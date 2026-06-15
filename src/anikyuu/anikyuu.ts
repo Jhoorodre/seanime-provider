@@ -241,9 +241,10 @@ class Provider {
                     const srcMatch = decoded.match(/src="([^"]+)"/)
                     if (srcMatch) {
                         const iframeUrl = srcMatch[1]
-                        let quality = "HD"
+                        let quality = "Auto"
                         const name = el.text().trim().toLowerCase()
                         if (name.includes("fhd") || name.includes("1080")) quality = "1080p"
+                        else if (name.includes("hd") || name.includes("720")) quality = "720p"
                         else if (name.includes("sd") || name.includes("480")) quality = "480p"
                         
                         if (iframeUrl.includes("filemoon")) {
@@ -276,7 +277,7 @@ class Provider {
                 const el = embeds.eq(i)
                 const src = el.attr("src")
                 if (src && src.includes("filemoon")) {
-                    embedPromises.push(this.extractFilemoon(src, result, "HD"))
+                    embedPromises.push(this.extractFilemoon(src, result, "Auto"))
                 }
             }
             await Promise.all(embedPromises)
