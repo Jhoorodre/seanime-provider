@@ -105,7 +105,6 @@ class Provider {
 
         const req = await fetch(targetUrl, { headers: this.headers })
         const html = await req.text()
-        const $ = LoadDoc(html)
 
         const result: EpisodeServer = {
             server: "HinataSoul",
@@ -113,49 +112,55 @@ class Provider {
             videoSources: []
         }
 
-        // Hinata Soul specific extraction:
-        // <meta itemprop="contentURL" content="https://cdn1.hinatasoul.com/apphd2/boku-no-hero-academia-7-temporada-episodio-1.mp4">
-        const metaUrl = $("meta[itemprop=contentURL]").attr("content")
+        const match = html.match(/foodiesbrazil\.info\/filez5\.php\?t=([^"'\s]+)/i)
+        if (!match) return result
         
-        if (metaUrl) {
-            // Replicate the logic from CursedYomi
-            const serverUrl = metaUrl.replace("cdn1", "cdn3")
-            const parts = serverUrl.split("/")
-            // e.g., ["https:", "", "cdn3.hinatasoul.com", "apphd2", "file.mp4"]
-            const type = parts[3] || "apphd" 
-            
-            const hasFHD = html.includes("FULLHD")
-
-            const qualities = []
-            const paths = []
-
-            qualities.push("480p")
-            paths.push(type.endsWith("2") ? "appsd2" : "appsd")
-
-            qualities.push("720p")
-            paths.push(type.endsWith("2") ? "apphd2" : "apphd")
-
-            if (hasFHD) {
-                qualities.push("1080p")
-                paths.push("appfullhd") // According to Kotlin, FULLHD is "appfullhd"
-            }
-
-            for (let i = 0; i < qualities.length; i++) {
-                const q = qualities[i]
-                const path = paths[i]
+        const token = match[1]
+        const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: this.headers })
+        const coemHtml = await coemReq.text()
+        
+        const urlMatch = coemHtml.match(/url=([^&"']+)/i)
+        if (!urlMatch) return result
+        
+        let baseR2Url = decodeURIComponent(urlMatch[1])
+        
+        const adReq = await fetch('https://cdn.taboola.com/libtrc/unpkg/tfa.js')
+        const adData = await adReq.text()
+        
+        const qualities = ["appsd", "apphd", "fful"]
+        const labels = ["480p", "720p", "1080p"]
+        
+        const sources = await Promise.all(qualities.map(async (q, i) => {
+            try {
+                const vidUrl = baseR2Url.replace(/\/(fiphonec|appsd|apphd|fful|iphonec)\//i, `/${q}/`)
+                const postData = "category=client&type=premium&ad=" + encodeURIComponent(adData) + "&url=" + encodeURIComponent(vidUrl)
                 
-                // Replace the type part in the url
-                const url = serverUrl.replace(`/${type}/`, `/${path}/`)
-
-                result.videoSources.push({
-                    url: url,
-                    quality: q,
-                    type: "mp4" // Direct mp4 files
+                const postReq = await fetch('https://ads.animeyabu.net/adblock2.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://www.anitube22.vip/' },
+                    body: postData
                 })
-            }
-        }
-
-        // Reverse to have best qualities at the top if desired
+                const postJson = await postReq.json()
+                const authToken = postJson[0].publicidade
+                
+                if (authToken && authToken !== "BLOQUEADO") {
+                    const getReq = await fetch(`https://ads.animeyabu.net/adblock2.php?token=${authToken}&url=${vidUrl}`, {
+                        headers: { 'Referer': 'https://www.anitube22.vip/' }
+                    })
+                    const getJson = await getReq.json()
+                    const signature = getJson[0].publicidade
+                    
+                    return {
+                        url: vidUrl + signature,
+                        quality: labels[i],
+                        type: "mp4"
+                    }
+                }
+            } catch (e) {}
+            return null
+        }))
+        
+        result.videoSources = sources.filter(s => s !== null) as VideoSource[]
         result.videoSources.reverse()
 
         return result
