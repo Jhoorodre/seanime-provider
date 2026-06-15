@@ -48,12 +48,13 @@ class Provider {
             }
         })
         
-        // Prioritize 'sub' over 'dub' so Seanime defaults to subbed version
-        results.sort((a, b) => {
-            if (a.subOrDub === "sub" && b.subOrDub === "dub") return -1;
-            if (a.subOrDub === "dub" && b.subOrDub === "sub") return 1;
-            return 0;
-        });
+        // Filtra estritamente pelo que o usuário pediu na chave (Sub ou Dub)
+        const filteredResults = results.filter(r => opts.dub ? r.subOrDub === "dub" : r.subOrDub === "sub");
+        
+        // Se encontrou resultados para o filtro, retorna eles. Senão, retorna tudo (fallback)
+        if (filteredResults.length > 0) {
+            return filteredResults;
+        }
         
         return results
     }
