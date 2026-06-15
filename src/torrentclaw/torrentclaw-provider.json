@@ -3,8 +3,8 @@
     "name": "TorrentClaw (anime)",
     "description": "Torrent search engine via TorrentClaw API. Allows filtering by audio/subtitle language and requiring TrueSpec verification.",
     "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/torrentclaw/torrentclaw-provider.json",
-    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/src/icon/torrentclaw.png",
-    "version": "1.0.4",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/torrentclaw.png",
+    "version": "1.0.5",
     "author": "jhoorodr",
     "type": "anime-torrent-provider",
     "language": "typescript",
@@ -27,19 +27,58 @@
                 "type": "select",
                 "default": "any",
                 "options": [
-                    { "label": "Any (Default)", "value": "any" },
-                    { "label": "Japanese (ja)", "value": "ja" },
-                    { "label": "English (en)", "value": "en" },
-                    { "label": "Portuguese (pt)", "value": "pt" },
-                    { "label": "Spanish (es)", "value": "es" },
-                    { "label": "Latin American Spanish (es-419)", "value": "es-419" },
-                    { "label": "French (fr)", "value": "fr" },
-                    { "label": "German (de)", "value": "de" },
-                    { "label": "Italian (it)", "value": "it" },
-                    { "label": "Russian (ru)", "value": "ru" },
-                    { "label": "Chinese (zh)", "value": "zh" },
-                    { "label": "Korean (ko)", "value": "ko" },
-                    { "label": "Arabic (ar)", "value": "ar" }
+                    {
+                        "label": "Any (Default)",
+                        "value": "any"
+                    },
+                    {
+                        "label": "Japanese (ja)",
+                        "value": "ja"
+                    },
+                    {
+                        "label": "English (en)",
+                        "value": "en"
+                    },
+                    {
+                        "label": "Portuguese (pt)",
+                        "value": "pt"
+                    },
+                    {
+                        "label": "Spanish (es)",
+                        "value": "es"
+                    },
+                    {
+                        "label": "Latin American Spanish (es-419)",
+                        "value": "es-419"
+                    },
+                    {
+                        "label": "French (fr)",
+                        "value": "fr"
+                    },
+                    {
+                        "label": "German (de)",
+                        "value": "de"
+                    },
+                    {
+                        "label": "Italian (it)",
+                        "value": "it"
+                    },
+                    {
+                        "label": "Russian (ru)",
+                        "value": "ru"
+                    },
+                    {
+                        "label": "Chinese (zh)",
+                        "value": "zh"
+                    },
+                    {
+                        "label": "Korean (ko)",
+                        "value": "ko"
+                    },
+                    {
+                        "label": "Arabic (ar)",
+                        "value": "ar"
+                    }
                 ]
             },
             {
@@ -48,17 +87,50 @@
                 "type": "select",
                 "default": "any",
                 "options": [
-                    { "label": "Any (Default)", "value": "any" },
-                    { "label": "English (en)", "value": "en" },
-                    { "label": "Portuguese (pt)", "value": "pt" },
-                    { "label": "Spanish (es)", "value": "es" },
-                    { "label": "Latin American Spanish (es-419)", "value": "es-419" },
-                    { "label": "French (fr)", "value": "fr" },
-                    { "label": "German (de)", "value": "de" },
-                    { "label": "Italian (it)", "value": "it" },
-                    { "label": "Russian (ru)", "value": "ru" },
-                    { "label": "Chinese (zh)", "value": "zh" },
-                    { "label": "Arabic (ar)", "value": "ar" }
+                    {
+                        "label": "Any (Default)",
+                        "value": "any"
+                    },
+                    {
+                        "label": "English (en)",
+                        "value": "en"
+                    },
+                    {
+                        "label": "Portuguese (pt)",
+                        "value": "pt"
+                    },
+                    {
+                        "label": "Spanish (es)",
+                        "value": "es"
+                    },
+                    {
+                        "label": "Latin American Spanish (es-419)",
+                        "value": "es-419"
+                    },
+                    {
+                        "label": "French (fr)",
+                        "value": "fr"
+                    },
+                    {
+                        "label": "German (de)",
+                        "value": "de"
+                    },
+                    {
+                        "label": "Italian (it)",
+                        "value": "it"
+                    },
+                    {
+                        "label": "Russian (ru)",
+                        "value": "ru"
+                    },
+                    {
+                        "label": "Chinese (zh)",
+                        "value": "zh"
+                    },
+                    {
+                        "label": "Arabic (ar)",
+                        "value": "ar"
+                    }
                 ]
             },
             {
