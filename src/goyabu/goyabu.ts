@@ -98,7 +98,6 @@ class Provider {
         const result: EpisodeServer = {
             server: "Blogger",
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36",
                 "Referer": "https://www.blogger.com/"
             },
             videoSources: []
@@ -221,7 +220,7 @@ class Provider {
                     }
                     
                     result.videoSources.push({
-                        url: videoUrl,
+                        url: videoUrl + "#.mp4",
                         type: "mp4",
                         quality: quality,
                         subtitles: []
