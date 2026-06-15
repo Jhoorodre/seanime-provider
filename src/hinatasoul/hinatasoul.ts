@@ -125,10 +125,14 @@ class Provider {
             "referer": "https://www.hinatasoul.com",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
-        
+
+
         try {
-            await fetch('http://localhost:8080/test', { headers: fetchHeaders })
-        } catch (e) {}
+            await fetch(`https://foodiesbrazil.info/filez5.php?t=${token}`, { headers: fetchHeaders })
+            await fetch(`https://ondeviajar.online/data15.php?token=${token}`, { headers: fetchHeaders })
+        } catch (e) {
+            console.log("Error in token activation chain:", e)
+        }
 
         const coemReq = await fetch(`https://www.coempregos.com.br/?token=${token}`, { headers: fetchHeaders })
         const coemHtml = await coemReq.text()
