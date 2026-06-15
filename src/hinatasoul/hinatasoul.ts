@@ -124,32 +124,22 @@ class Provider {
         
         let baseR2Url = decodeURIComponent(urlMatch[1])
         
-        const adReq = await fetch('https://cdn.taboola.com/libtrc/unpkg/tfa.js')
-        const adData = await adReq.text()
-        
         const qualities = ["appsd", "apphd", "fful"]
         const labels = ["480p", "720p", "1080p"]
         
         const sources = await Promise.all(qualities.map(async (q, i) => {
             try {
                 const vidUrl = baseR2Url.replace(/\/(fiphonec|appsd|apphd|fful|iphonec)\//i, `/${q}/`)
-                const postData = "category=client&type=premium&ad=" + encodeURIComponent(adData) + "&url=" + encodeURIComponent(vidUrl)
                 
-                const postReq = await fetch('https://ads.animeyabu.net/adblock2.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://www.anitube22.vip/' },
-                    body: postData
+                // Surprisingly, the animeyabu backend doesn't validate the token!
+                // Passing 'undefined' directly returns the signed AWS url.
+                const getReq = await fetch(`https://ads.animeyabu.net/adblock2.php?token=undefined&url=${vidUrl}`, {
+                    headers: { 'Referer': 'https://www.anitube22.vip/' }
                 })
-                const postJson = await postReq.json()
-                const authToken = postJson[0].publicidade
+                const getJson = await getReq.json()
+                const signature = getJson[0].publicidade
                 
-                if (authToken && authToken !== "BLOQUEADO") {
-                    const getReq = await fetch(`https://ads.animeyabu.net/adblock2.php?token=${authToken}&url=${vidUrl}`, {
-                        headers: { 'Referer': 'https://www.anitube22.vip/' }
-                    })
-                    const getJson = await getReq.json()
-                    const signature = getJson[0].publicidade
-                    
+                if (signature && signature !== "undefined") {
                     return {
                         url: vidUrl + signature,
                         quality: labels[i],
