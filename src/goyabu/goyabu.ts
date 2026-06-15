@@ -97,9 +97,7 @@ class Provider {
         
         const result: EpisodeServer = {
             server: "Blogger",
-            headers: {
-                "Referer": "https://www.blogger.com/"
-            },
+            headers: {},
             videoSources: []
         }
 
@@ -223,7 +221,10 @@ class Provider {
                         url: videoUrl + "#.mp4",
                         type: "mp4",
                         quality: quality,
-                        subtitles: []
+                        subtitles: [],
+                        headers: {
+                            "Referer": "https://www.blogger.com/"
+                        }
                     });
                 }
             }
