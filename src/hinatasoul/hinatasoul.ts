@@ -122,7 +122,9 @@ class Provider {
         // Remove duplicate tokens
         const tokens = [...new Set(tokenMatches.map(m => m[1]))]
 
-        const sources = await Promise.all(tokens.map(async (token) => {
+        const sources: VideoSource[] = []
+        
+        for (const token of tokens) {
             try {
                 const fetchHeaders = {
                     "referer": "https://www.hinatasoul.com",
@@ -138,7 +140,7 @@ class Provider {
                 const coemHtml = await coemReq.text()
                 
                 const urlMatch = coemHtml.match(/url=([^&"']+)/i)
-                if (!urlMatch) return null
+                if (!urlMatch) continue
                 
                 let vidUrl = decodeURIComponent(urlMatch[1])
                 
@@ -162,15 +164,14 @@ class Provider {
                 const signature = getJson[0]?.publicidade
                 
                 if (signature && signature !== "undefined") {
-                    return {
+                    sources.push({
                         url: vidUrl + signature,
                         quality: quality,
                         type: "mp4"
-                    } as VideoSource
+                    } as VideoSource)
                 }
             } catch (e) {}
-            return null
-        }))
+        }
         
         result.videoSources = sources.filter(s => s !== null && s.quality !== "Unknown") as VideoSource[]
         
