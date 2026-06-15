@@ -44,6 +44,14 @@ class Provider {
                 })
             }
         })
+        
+        // Prioritize 'sub' over 'dub' so Seanime defaults to subbed version
+        results.sort((a, b) => {
+            if (a.subOrDub === "sub" && b.subOrDub === "dub") return -1;
+            if (a.subOrDub === "dub" && b.subOrDub === "sub") return 1;
+            return 0;
+        });
+        
         return results
     }
 
