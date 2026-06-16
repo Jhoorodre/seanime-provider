@@ -12,7 +12,7 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Status:* [x] Started
 - [ ] **Manhastro**
   - *Reference:* `providers_source/tmp-manga-extension/src/pt/manhastro`
-  - *Status:* [ ] Not Started
+  - *Status:* [x] Started
 - [ ] **Sakura Manga**
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* [ ] Not Started
