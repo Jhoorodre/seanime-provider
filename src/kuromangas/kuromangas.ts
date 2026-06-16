@@ -1,5 +1,7 @@
 /// <reference path="../../types/manga-provider.d.ts" />
 
+let globalCachedCookieKuro: string | null = null;
+
 class Provider {
     private baseUrl = "https://kuromangas.com"
     private apiUrl = "https://kuromangas.com/api"
@@ -19,6 +21,11 @@ class Provider {
 
     private async requestAPI(url: string, options: any): Promise<any> {
         const res = await fetch(url, options);
+
+        if (url.includes("/auth/login")) {
+            const setCookie = res.headers?.get ? res.headers.get("set-cookie") : null;
+            if (setCookie) globalCachedCookieKuro = setCookie;
+        }
 
         if (!res.ok) {
             const text = await res.text();
@@ -181,7 +188,8 @@ class Provider {
                         headers: {
                             "Authorization": `Bearer ${token}`,
                             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                            "Referer": `${this.baseUrl}/catalogo`
+                            "Referer": `${this.baseUrl}/catalogo`,
+                            "Cookie": globalCachedCookieKuro || ""
                         }
                     });
                     if (imgRes.ok) {

@@ -2,6 +2,7 @@
 
 // Variáveis globais para compartilhar o token entre as 7 requisições paralelas do Seanime
 let globalCachedToken: string | null = null;
+let globalCachedCookie: string | null = null;
 let globalLoginPromise: Promise<string> | null = null;
 
 class Provider {
@@ -78,6 +79,10 @@ class Provider {
             }
 
             console.log("-> Lendo JSON...");
+            const setCookie = response.headers.get("set-cookie");
+            if (setCookie) {
+                globalCachedCookie = setCookie;
+            }
             const data = await response.json();
             console.log("-> JSON lido com sucesso.");
             globalCachedToken = `Bearer ${data.token}`;
@@ -136,7 +141,8 @@ class Provider {
                         const imgRes = await fetch(imgUrl, {
                             headers: {
                                 ...this.defaultHeaders,
-                                "Authorization": token
+                                "Authorization": token,
+                                "Cookie": globalCachedCookie || ""
                             }
                         });
                         if (imgRes.ok) {
