@@ -7,9 +7,7 @@ This document outlines the planned extensions and providers to be implemented, a
 - [x] **Kuro Mangas** (`src/kuromangas`)
 - [x] **MangaLivre.tv / ToonLivre** (`src/mangalivre.tv`)
 - [x] **Mediocre Scan** (`src/mediocrescan`)
-- [x] **Nexus Toons**
-  - *Reference:* `providers_source/tmp-manga-extension/src/pt/spectralscan`
-  - *Status:* [x] Started
+- [x] **Nexus Toons** (`src/nexustoons`)
 - [ ] **Manhastro**
   - *Reference:* `providers_source/tmp-manga-extension/src/pt/manhastro`
   - *Status:* [x] Started
