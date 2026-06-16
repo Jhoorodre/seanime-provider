@@ -8,9 +8,7 @@ This document outlines the planned extensions and providers to be implemented, a
 - [x] **MangaLivre.tv / ToonLivre** (`src/mangalivre.tv`)
 - [x] **Mediocre Scan** (`src/mediocrescan`)
 - [x] **Nexus Toons** (`src/nexustoons`)
-- [ ] **Manhastro**
-  - *Reference:* `providers_source/tmp-manga-extension/src/pt/manhastro`
-  - *Status:* [x] Started
+- [x] **Manhastro** (`src/manhastro`)
 - [ ] **Sakura Manga**
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* [ ] Not Started
