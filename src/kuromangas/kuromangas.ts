@@ -1,7 +1,5 @@
 /// <reference path="../../types/manga-provider.d.ts" />
 
-let globalCachedCookieKuro: string | null = null;
-
 class Provider {
     private baseUrl = "https://kuromangas.com"
     private apiUrl = "https://kuromangas.com/api"
@@ -21,11 +19,6 @@ class Provider {
 
     private async requestAPI(url: string, options: any): Promise<any> {
         const res = await fetch(url, options);
-
-        if (url.includes("/auth/login")) {
-            const setCookie = res.headers?.get ? res.headers.get("set-cookie") : null;
-            if (setCookie) globalCachedCookieKuro = setCookie;
-        }
 
         if (!res.ok) {
             const text = await res.text();
@@ -173,60 +166,20 @@ class Provider {
 
         const items = response?.data ? response.data : (Array.isArray(response) ? response : []);
 
-        const token = await this.getToken();
-        
-        return Promise.all(items.map(async (manga: any) => {
+        return items.map((manga: any) => {
             const cover = manga.cover_image || manga.cover || "";
             const imageUrl = cover.startsWith("http") 
                 ? cover 
                 : `${this.cdnUrl}${cover.startsWith("/") ? "" : "/"}${cover}`;
-            
-            let imageBase64 = "";
-            if (imageUrl) {
-                try {
-                    const imgRes = await fetch(imageUrl, {
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                            "Referer": `${this.baseUrl}/catalogo`,
-                            "Cookie": globalCachedCookieKuro || ""
-                        }
-                    });
-                    if (imgRes.ok) {
-                        const buffer = await imgRes.arrayBuffer();
-                        const bytes = new Uint8Array(buffer);
-                        
-                        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-                        let b64 = "";
-                        for (let i = 0; i < bytes.length; i += 3) {
-                            const b1 = bytes[i];
-                            const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-                            const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-                            b64 += chars[b1 >> 2];
-                            b64 += chars[((b1 & 3) << 4) | (b2 >> 4)];
-                            b64 += i + 1 < bytes.length ? chars[((b2 & 15) << 2) | (b3 >> 6)] : "=";
-                            b64 += i + 2 < bytes.length ? chars[b3 & 63] : "=";
-                        }
-                        
-                        let mimeType = "image/jpeg";
-                        if (imageUrl.endsWith(".webp")) mimeType = "image/webp";
-                        else if (imageUrl.endsWith(".png")) mimeType = "image/png";
-                        
-                        imageBase64 = `data:${mimeType};base64,${b64}`;
-                    }
-                } catch (e) {
-                    // fallback
-                }
-            }
             
             return {
                 id: manga.id.toString(),
                 title: manga.title,
                 synonyms: manga.alternative_titles || (manga.slug ? [manga.slug] : []),
                 year: manga.created_at ? new Date(manga.created_at).getFullYear() : 0,
-                image: imageBase64 || imageUrl
+                image: imageUrl
             };
-        }));
+        });
     }
 
     async findChapters(id: string): Promise<ChapterDetails[]> {

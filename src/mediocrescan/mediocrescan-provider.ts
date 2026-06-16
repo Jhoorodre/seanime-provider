@@ -2,7 +2,6 @@
 
 // Variáveis globais para compartilhar o token entre as 7 requisições paralelas do Seanime
 let globalCachedToken: string | null = null;
-let globalCachedCookie: string | null = null;
 let globalLoginPromise: Promise<string> | null = null;
 
 class Provider {
@@ -79,10 +78,6 @@ class Provider {
             }
 
             console.log("-> Lendo JSON...");
-            const setCookie = response.headers.get("set-cookie");
-            if (setCookie) {
-                globalCachedCookie = setCookie;
-            }
             const data = await response.json();
             console.log("-> JSON lido com sucesso.");
             globalCachedToken = `Bearer ${data.token}`;
@@ -132,56 +127,13 @@ class Provider {
             
             const tKey = "ti" + "tle";
 
-            const results = await Promise.all(mangasOnly.map(async (obra: any) => {
-                let imageBase64 = "";
-                const imgUrl = obra.imagem ? `https://mediocrescan.com/uploads/obras/${obra.imagem}` : "";
-                
-                if (imgUrl) {
-                    try {
-                        const imgRes = await fetch(imgUrl, {
-                            headers: {
-                                ...this.defaultHeaders,
-                                "Authorization": token,
-                                "Cookie": globalCachedCookie || ""
-                            }
-                        });
-                        if (imgRes.ok) {
-                            const buffer = await imgRes.arrayBuffer();
-                            const bytes = new Uint8Array(buffer);
-                            
-                            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-                            let b64 = "";
-                            for (let i = 0; i < bytes.length; i += 3) {
-                                const b1 = bytes[i];
-                                const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-                                const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-                                b64 += chars[b1 >> 2];
-                                b64 += chars[((b1 & 3) << 4) | (b2 >> 4)];
-                                b64 += i + 1 < bytes.length ? chars[((b2 & 15) << 2) | (b3 >> 6)] : "=";
-                                b64 += i + 2 < bytes.length ? chars[b3 & 63] : "=";
-                            }
-                            
-                            let mimeType = "image/jpeg";
-                            if (imgUrl.endsWith(".webp")) mimeType = "image/webp";
-                            else if (imgUrl.endsWith(".png")) mimeType = "image/png";
-                            
-                            imageBase64 = `data:${mimeType};base64,${b64}`;
-                        }
-                    } catch (e) {
-                        // fallback
-                    }
-                }
-
-                return {
-                    id: obra.id.toString(),
-                    [tKey]: obra.nome || obra.titulo || "",
-                    synonyms: [obra.nome || ""],
-                    year: 0,
-                    image: imageBase64 || imgUrl,
-                };
+            return mangasOnly.map((obra: any) => ({
+                id: obra.id.toString(),
+                [tKey]: obra.nome || obra.titulo || "",
+                synonyms: [obra.nome || ""],
+                year: 0,
+                image: obra.imagem ? `https://back.mediocrescan.com/media/obras/${obra.id}/capa?f=${obra.imagem}&q=40&fit=cover&w=600` : "",
             }));
-
-            return results;
 
         } catch (error) {
             console.error("Search failed:", error);
