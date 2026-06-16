@@ -166,20 +166,56 @@ class Provider {
 
         const items = response?.data ? response.data : (Array.isArray(response) ? response : []);
 
-        return items.map((manga: any) => {
+        return Promise.all(items.map(async (manga: any) => {
             const cover = manga.cover_image || manga.cover || "";
             const imageUrl = cover.startsWith("http") 
                 ? cover 
                 : `${this.cdnUrl}${cover.startsWith("/") ? "" : "/"}${cover}`;
+            
+            let imageBase64 = "";
+            if (imageUrl) {
+                try {
+                    const imgRes = await fetch(imageUrl, {
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                            "Referer": `${this.baseUrl}/catalogo`
+                        }
+                    });
+                    if (imgRes.ok) {
+                        const buffer = await imgRes.arrayBuffer();
+                        const bytes = new Uint8Array(buffer);
+                        
+                        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                        let b64 = "";
+                        for (let i = 0; i < bytes.length; i += 3) {
+                            const b1 = bytes[i];
+                            const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+                            const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+                            b64 += chars[b1 >> 2];
+                            b64 += chars[((b1 & 3) << 4) | (b2 >> 4)];
+                            b64 += i + 1 < bytes.length ? chars[((b2 & 15) << 2) | (b3 >> 6)] : "=";
+                            b64 += i + 2 < bytes.length ? chars[b3 & 63] : "=";
+                        }
+                        
+                        let mimeType = "image/jpeg";
+                        if (imageUrl.endsWith(".webp")) mimeType = "image/webp";
+                        else if (imageUrl.endsWith(".png")) mimeType = "image/png";
+                        
+                        imageBase64 = `data:${mimeType};base64,${b64}`;
+                    }
+                } catch (e) {
+                    // fallback to url
+                }
+            }
             
             return {
                 id: manga.id.toString(),
                 title: manga.title,
                 synonyms: manga.alternative_titles || (manga.slug ? [manga.slug] : []),
                 year: manga.created_at ? new Date(manga.created_at).getFullYear() : 0,
-                image: imageUrl
+                image: imageBase64 || imageUrl
             };
-        });
+        }));
     }
 
     async findChapters(id: string): Promise<ChapterDetails[]> {
