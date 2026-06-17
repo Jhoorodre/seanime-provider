@@ -130,5 +130,49 @@
     "type": "manga-provider",
     "language": "typescript",
     "lang": "pt-BR"
+  },
+  {
+    "id": "anitube",
+    "name": "AniTube",
+    "description": "AniTube is an online streaming provider for portugese subs.",
+    "author": "Pal",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anitube/manifest.json",
+    "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anitube.png",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt"
+  },
+  {
+    "id": "ptscans-provider",
+    "name": "PT Scans",
+    "description": "Unified manga provider - Portuguese manga/manhwa Websites",
+    "author": "Skrapt",
+    "manifestURI": "https://raw.githubusercontent.com/SKRAPT/PT-Scans/refs/heads/main/ptscans-provider.json",
+    "icon": "https://raw.githubusercontent.com/SKRAPT/PT-Scans/main/upscan.png",
+    "type": "manga-provider",
+    "language": "javascript",
+    "lang": "pt"
+  },
+  {
+    "id": "mangaflix-ptbr",
+    "name": "MangaFlix",
+    "description": "Manga provider for MangaFlix using API - Portuguese manga/manhwa Website",
+    "author": "Skrapt",
+    "manifestURI": "https://raw.githubusercontent.com/SKRAPT/MangaFlix/refs/heads/main/mangaflix.json",
+    "icon": "https://raw.githubusercontent.com/SKRAPT/MangaFlix/main/MangaFlix.png",
+    "type": "manga-provider",
+    "language": "javascript",
+    "lang": "pt"
+  },
+  {
+    "id": "hipercool-provider-v3",
+    "name": "HiperCool",
+    "description": "Manga provider for HiperCool - Portuguese manga/manhwa site",
+    "author": "Skrapt",
+    "manifestURI": "https://raw.githubusercontent.com/SKRAPT/Hipercool-Seanime/main/hipercool-provider.json",
+    "icon": "https://raw.githubusercontent.com/SKRAPT/Hipercool-Seanime/main/hipercool.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt"
   }
 ]
