@@ -2,7 +2,7 @@
 
 This document outlines the planned extensions and providers to be implemented, as well as the ones already available in the project.
 
-## 📖 Manga Providers (pt-BR)
+## Manga Providers (pt-BR)
 
 - [x] **Kuro Mangas** (`src/kuromangas`)
 - [x] **MangaLivre.tv / ToonLivre** (`src/mangalivre.tv`)
@@ -16,7 +16,7 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Status:*
   - 
 
-## 📺 Online Streaming Provider
+## Online Streaming Provider
 
 - [x] **AnimesOnlineCC** (`src/animesonlinecc`)
 - [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
