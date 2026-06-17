@@ -9,14 +9,17 @@ This document outlines the planned extensions and providers to be implemented, a
 - [x] **Mediocre Scan** (`src/mediocrescan`)
 - [x] **Nexus Toons** (`src/nexustoons`)
 - [x] **Manhastro** (`src/manhastro`)
-- [ ] **Sakura Manga**
+- [ ] **Sakura Mangas**
   - *Reference:* `https://sakuramangas.org/`
-  - *Status:* [ ] Not Started
+  - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
+- [ ] **Cubari.moe**
+  - *Status:*
+  - 
 
-## 📺 Anime Providers
+## 📺 Online Streaming Provider
 
 - [x] **AnimesOnlineCC** (`src/animesonlinecc`)
-- [x] **Dark Mahou** (`src/darkmahou`)
+- [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
 - [x] **Dattebayo BR** (`src/dattebayobr`)
 - [x] **Goyabu** (`src/goyabu`)
 - [x] **Hinata Soul** (`src/hinatasoul`)
@@ -25,3 +28,7 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledrive`
 - [ ] **Google Drive (Index)**
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
+
+## Anime Torrent Providers
+
+- [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
