@@ -1,1 +1,1 @@
-# seanime-provider (pt-BT)
+# seanime-provider
