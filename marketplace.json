@@ -1,0 +1,134 @@
+[
+  {
+    "id": "darkmahou-provider",
+    "name": "DarkMahou",
+    "description": "Provedor de torrents de anime do site DarkMahou.org com busca inteligente e detecção corrigida de batches",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/darkmahou/darkmahou-provider.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/darkmahou.png",
+    "type": "anime-torrent-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "kuromangas",
+    "name": "Kuro Mangas",
+    "description": "Provedor de leitura de mangás do Kuro Mangas. OBS: Requer uma conta criada no site para funcionar.",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/kuromangas/kuromangas.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/kuromangas.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "hinatasoul-provider",
+    "name": "Hinata Soul",
+    "description": "Provedor de streaming de animes do Hinata Soul.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/hinatasoul/hinatasoul.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/hinatasoul.png",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "nexustoons",
+    "name": "Nexus Toons",
+    "description": "Provedor de mangás do Nexus Toons.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/nexustoons/nexustoons.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/nexustoons.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "manhastro",
+    "name": "Manhastro",
+    "description": "Provedor de mangás e manhwas do Manhastro.net.",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/manhastro/manhastro.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/manhastro.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "animesonlinecc-provider",
+    "name": "AnimesOnlineCC",
+    "description": "Provedor de streaming de animes do AnimesOnlineCC.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/animesonlinecc/animesonlinecc.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/animesonlinecc.png",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "torrentclaw",
+    "name": "TorrentClaw (anime)",
+    "description": "Torrent search engine via TorrentClaw API. Allows filtering by audio/subtitle language and requiring TrueSpec verification.",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/torrentclaw/torrentclaw-provider.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/torrentclaw.png",
+    "type": "anime-torrent-provider",
+    "language": "typescript",
+    "lang": "multi"
+  },
+  {
+    "id": "mediocrescan",
+    "name": "MediocreScan",
+    "description": "Provider de manhwas do MediocreScan. OBS: Requer uma conta criada no site (configurada no menu da extensão) para funcionar.",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/mediocrescan/mediocrescan.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/mediocrescan.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "goyabu-provider",
+    "name": "Goyabu",
+    "description": "Provedor de streaming de animes do Goyabu.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/goyabu/goyabu.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/goyabu.png",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "dattebayobr-provider",
+    "name": "Dattebayo BR",
+    "description": "Provedor de streaming de animes do Dattebayo BR.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/dattebayobr/dattebayobr.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/dattebayobr.png",
+    "type": "onlinestream-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "mangalivre-tv",
+    "name": "MangaLivre.tv",
+    "description": "Provider de mangás do site MangaLivre.tv (Agora ToonLivre) - Um site com mangás traduzidos para o português",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/mangalivre.tv/mangalivre-tv.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/mangalivre.tv.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  },
+  {
+    "id": "sakuramangas",
+    "name": "Sakura Mangas",
+    "description": "Provedor do Sakura Mangas. REQUER BYPASS MANUAL DO CLOUDFLARE NAS CONSTANTES DO CÓDIGO FONTE.",
+    "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/sakuramangas/sakuramangas.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/sakuramangas.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "pt-BR"
+  }
+]
