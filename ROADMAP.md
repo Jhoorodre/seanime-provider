@@ -37,6 +37,7 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
 - [ ] **Cubari.moe**
   - *Type:* Manga Provider
+  
 ## Deprecated
 
 - [x] ~~**Sakura Mangas** (`src/sakuramangas`)~~
