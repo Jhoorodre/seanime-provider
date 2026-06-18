@@ -179,28 +179,22 @@
     "id": "ptbr-aggregator",
     "name": "Brazilian Torrent Aggregator",
     "description": "Um agregador de múltiplos provedores (Nyaa, AnimeTosho, etc) com filtros automáticos para encontrar torrents de anime em Português Brasileiro (PT-BR).",
-    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/ptbr-aggregator/ptbr-aggregator.json",
-    "version": "1.0.0",
     "author": "jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/ptbr-aggregator/ptbr-aggregator.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/ptbr-aggregator.png",
     "type": "anime-torrent-provider",
     "language": "typescript",
-    "lang": "pt-BR",
-    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/ptbr-aggregator.png",
-    "payloadURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/ptbr-aggregator/ptbr-aggregator.ts",
-    "isDevelopment": true
+    "lang": "pt-BR"
   },
   {
     "id": "amigosshareclub",
     "name": "Amigos Share Club (Animes)",
     "description": "Busca de animes no Amigos Share Club (Tracker Privado).",
-    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/amigosshareclub.png",
-    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/amigosshareclub/amigosshareclub.json",
-    "version": "1.0.2",
     "author": "jhonnatta",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/amigosshareclub/amigosshareclub.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/amigosshareclub.png",
     "type": "anime-torrent-provider",
     "language": "typescript",
-    "lang": "pt-BR",
-    "payloadURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/amigosshareclub/amigosshareclub.ts",
-    "isDevelopment": false
+    "lang": "pt-BR"
   }
 ]
