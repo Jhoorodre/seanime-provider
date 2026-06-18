@@ -7,8 +7,8 @@ class Provider {
 
     getSettings(): AnimeProviderSettings {
         return {
-            canSmartSearch: false,
-            smartSearchFilters: [],
+            canSmartSearch: true,
+            smartSearchFilters: ["query", "episodeNumber", "batch", "resolution"],
             supportsAdult: false,
             type: "main",
         };
