@@ -12,10 +12,11 @@ This document outlines the planned extensions and providers to be implemented, a
 - [ ] **Sakura Mangas**
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
+- [ ] **Brazilian Torrent Aggregator**
+  - *Status:* In produced, but not yet available.  - 
 - [ ] **Cubari.moe**
   - *Status:*
   - 
-
 ## Online Streaming Provider
 
 - [x] **AnimesOnlineCC** (`src/animesonlinecc`)
@@ -31,4 +32,5 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Anime Torrent Providers
 
+- [x] **Amigos Share Club** (`src/amigosshareclub`)
 - [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
