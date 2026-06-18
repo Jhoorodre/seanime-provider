@@ -31,12 +31,15 @@ This document outlines the planned extensions and providers to be implemented, a
 - [ ] **Brazilian Torrent Aggregator**
   - *Type:* Anime Torrent Provider
   - *Status:* In production, but not yet available.
+
 - [ ] **Google Drive**
   - *Type:* Online Streaming Provider
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledrive`
+
 - [ ] **Google Drive (Index)**
   - *Type:* Online Streaming Provider
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
+  
 - [ ] **Cubari.moe**
   - *Type:* Manga Provider
   
