@@ -20,11 +20,13 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Anime Torrent Providers
 
-- [x] **Amigos Share Club** (`src/amigosshareclub`)
-
 ---
 
 ## In Development / Planned
+
+- [ ] **Amigos Share Club** (`src/amigosshareclub`)
+  - *Type:* Anime Torrent Provider
+  - *Status:* In development (Search filter issues)
 
 - [ ] **Brazilian Torrent Aggregator**
   - *Type:* Anime Torrent Provider
