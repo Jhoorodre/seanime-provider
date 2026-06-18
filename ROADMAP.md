@@ -20,6 +20,9 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Anime Torrent Providers
 
+- [x] **Dark Mahou** (`src/darkmahou`)
+- [x] **Brazilian Torrent Aggregator** (`src/ptbr-aggregator`)
+
 ---
 
 ## In Development / Planned
@@ -27,10 +30,6 @@ This document outlines the planned extensions and providers to be implemented, a
 - [ ] **Amigos Share Club** (`src/amigosshareclub`)
   - *Type:* Anime Torrent Provider
   - *Status:* In development (Search filter issues)
-
-- [ ] **Brazilian Torrent Aggregator**
-  - *Type:* Anime Torrent Provider
-  - *Status:* In production, but not yet available.
 
 - [ ] **Google Drive**
   - *Type:* Online Streaming Provider
@@ -49,5 +48,3 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Type:* Manga Provider
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
-- [x] ~~**Dark Mahou** (`src/darkmahou`)~~
-  - *Type:* Online Streaming Provider & Anime Torrent Provider

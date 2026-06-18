@@ -46,7 +46,7 @@ const REGEX_PATTERNS = {
     },
     SEASON_ORDINAL: /\b(\d+)(?:st|nd|rd|th)\s+season\b/gi,
     SEASON_IDX_RGX: /\bseason\s+(\d+)\b/gi,
-    PAGE_LINK_RGX: new RegExp('<a[^>]+href="(https:\\/\\/darkmahou\\.io\\/[^\\/]+\\/)"[^>]*ti' + 'tle="([^"]*)"[^>]*>', 'gi')
+    PAGE_LINK_RGX: new RegExp('<a[^>]+href="(https:\\/\\/darkmahou\\.io\\/[^\\/]+\\/)"(?:[^>]*title="([^"]*)")?[^>]*>', 'gi')
 };
 
 const PT_BR_TRANS = {
@@ -75,7 +75,7 @@ const PERF_CONFIG = {
     CACHE_TTL: 5 * 60 * 1000, 
     MAX_CACHE_SIZE: 100,
     EARLY_EXIT: 95,
-    MAX_FUZZY_CANDS: 5,
+    MAX_FUZZY_CANDS: 500,
     MIN_LABEL_LEN: 2
 };
 
@@ -398,7 +398,7 @@ class PageLinkFinder {
     }
     static extractPageURL(html: string, q: string): string {
         try {
-            console.log("Extracting anime page URL for query: " + q);
+            // console.log("Extracting anime page URL for query: " + q);
             
             const ck = "page_extract_" + q;
             const cached = PerformanceCache.get(ck);
@@ -414,7 +414,11 @@ class PageLinkFinder {
             
             while ((m = rgx.exec(html)) !== null) {
                 const url = m[1];
-                const matchLabel = m[2] || "";
+                let matchLabel = m[2] || "";
+                
+                if (!matchLabel) {
+                    matchLabel = PageLinkFinder.extractSlug(url);
+                }
                 
                 if (PageLinkFinder.skipURL(url) || matchLabel.length < PERF_CONFIG.MIN_LABEL_LEN) {
                     continue;
@@ -423,10 +427,10 @@ class PageLinkFinder {
                 const res = PageLinkFinder.calcScore(q, matchLabel, url);
                 if (res.score > 0) {
                     pot.push(res);
-                    console.log("Found potential match: " + matchLabel + " (" + url + ") - Score: " + res.score + " (Strat: " + res.strat + ")");
+                    // console.log("Found potential match: " + matchLabel + " (" + url + ") - Score: " + res.score + " (Strat: " + res.strat + ")");
                     
                     if (res.score >= PERF_CONFIG.EARLY_EXIT) {
-                        console.log("Early exit triggered for high-scoring match");
+                        // console.log("Early exit triggered for high-scoring match");
                         const final = res.url;
                         PerformanceCache.set(ck, final);
                         return final;
@@ -660,7 +664,6 @@ class HTTPClient {
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
                     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept-Encoding": "gzip, deflate, br",
                     "Connection": "keep-alive",
                     "Sec-Fetch-Dest": "document",
                     "Sec-Fetch-Mode": "navigate",
@@ -714,7 +717,6 @@ class HTTPClient {
                 headers: {
                     "User-Agent": PROVIDER_CONFIG.USER_AGENT,
                     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept-Encoding": "gzip, deflate, br",
                     "Connection": "keep-alive",
                     "Sec-Fetch-Dest": "empty",
                     "Sec-Fetch-Mode": "cors",
@@ -1070,7 +1072,7 @@ class Provider {
 
     async search(opts: AnimeSearchOptions): Promise<AnimeTorrent[]> {
         const t0 = Date.now();
-        console.log("Searching for: " + opts.query);
+        // console.log("Searching for: " + opts.query);
         
         try {
             const ck = "search_" + opts.query;
@@ -1082,10 +1084,10 @@ class Provider {
             }
             
             const cQ = this.translator.parse(opts.query);
-            console.log("Converted query: " + cQ);
+            // console.log("Converted query: " + cQ);
             
             const sUrl = this.api + "/?s=" + encodeURIComponent(cQ);
-            console.log("Search URL: " + sUrl);
+            // console.log("Search URL: " + sUrl);
             
             const fRes = await HTTPClient.fetchWithUA(sUrl);
             
@@ -1103,7 +1105,7 @@ class Provider {
                 return [];
             }
 
-            console.log("Found anime page: " + aURL);
+            // console.log("Found anime page: " + aURL);
             
             const results = await this.fetchTorrents(aURL, opts.media);
             
@@ -1129,7 +1131,7 @@ class Provider {
             const q = opts.query || (opts.media as any)[romKey] || (opts.media as any)[engKey] || "";
             const epIdx = (opts as any)[epNumKey] || 1;
             
-            console.log("Smart search for: " + q + " - EpIdx: " + epIdx);
+            // console.log("Smart search for: " + q + " - EpIdx: " + epIdx);
             
             const results = await this.search({ media: opts.media, query: q });
             
@@ -1213,6 +1215,28 @@ class Provider {
             console.log("Magnet link found: " + torrent.magnetLink.substring(0, 100) + "...");
             return torrent.magnetLink;
         }
+
+        if (torrent.link && torrent.link.includes("systemads.net")) {
+            console.log("Extracting magnet link from systemads.net...");
+            try {
+                const req = await fetch(torrent.link, {
+                    headers: {
+                        "User-Agent": PROVIDER_CONFIG.USER_AGENT
+                    },
+                    redirect: "follow"
+                });
+
+                const html = await req.text();
+                const match = html.match(/const\s+DEST_URL\s*=\s*["'](magnet:\?[^"']+)["']/i);
+                
+                if (match && match[1]) {
+                    console.log("Extracted magnet link successfully");
+                    return match[1];
+                }
+            } catch (e) {
+                console.error("Error extracting magnet from systemads:", e);
+            }
+        }
         
         console.log("No valid magnet link found for torrent: " + (torrent.name || "Unknown"));
         return "";
@@ -1223,7 +1247,7 @@ class Provider {
     }
     
     private async fetchTorrents(aURL: string, _m: Media): Promise<AnimeTorrent[]> {
-        console.log("Fetching torrents from: " + aURL);
+        // console.log("Fetching torrents from: " + aURL);
         
         const fRes = await HTTPClient.fetchWithUA(aURL);
         
@@ -1239,7 +1263,7 @@ class Provider {
         const t0 = Date.now();
 
         try {
-            console.log("Parsing torrents from HTML using optimized regex...");
+            // console.log("Parsing torrents from HTML using optimized regex...");
 
             const ck = "torrents_" + aURL;
             const cached = PerformanceCache.get(ck);
@@ -1269,7 +1293,7 @@ class Provider {
         const res: AnimeTorrent[] = [];
 
         try {
-            console.log("Using optimized regex to find magnet links...");
+            // console.log("Using optimized regex to find magnet links...");
 
             const labeledPat = /<a[^>]+href=["'](https?:\/\/darkmahou\.io\?([a-zA-Z0-9]+)=([a-zA-Z0-9+\/]+=*))["'][^>]*>(.*?)<\/a>/gi;
             let m;
@@ -1328,7 +1352,7 @@ class Provider {
             const mMatches = html.match(REGEX_PATTERNS.MAGNET_LINK);
 
             if (mMatches && mMatches.length > 0) {
-                console.log("Found " + mMatches.length + " magnet links in page");
+                // console.log("Found " + mMatches.length + " magnet links in page");
 
                 const seen = new Set<string>();
                 for (let i = 0; i < res.length; i++) {
@@ -1356,7 +1380,7 @@ class Provider {
                 }
             }
 
-            console.log("Optimized regex parsing found " + res.length + " unique torrents");
+            // console.log("Optimized regex parsing found " + res.length + " unique torrents");
             return res;
 
         } catch (err) {
