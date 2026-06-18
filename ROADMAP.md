@@ -9,28 +9,40 @@ This document outlines the planned extensions and providers to be implemented, a
 - [x] **Mediocre Scan** (`src/mediocrescan`)
 - [x] **Nexus Toons** (`src/nexustoons`)
 - [x] **Manhastro** (`src/manhastro`)
-- [ ] **Sakura Mangas**
-  - *Reference:* `https://sakuramangas.org/`
-  - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
-- [ ] **Brazilian Torrent Aggregator**
-  - *Status:* In produced, but not yet available.  - 
-- [ ] **Cubari.moe**
-  - *Status:*
-  - 
-## Online Streaming Provider
+
+## Online Streaming Providers
 
 - [x] **AnimesOnlineCC** (`src/animesonlinecc`)
-- [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
 - [x] **Dattebayo BR** (`src/dattebayobr`)
 - [x] **Goyabu** (`src/goyabu`)
 - [x] **Hinata Soul** (`src/hinatasoul`)
 - [x] **TorrentClaw** (`src/torrentclaw`)
-- [ ] **Google Drive**
-  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledrive`
-- [ ] **Google Drive (Index)**
-  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
 
 ## Anime Torrent Providers
 
 - [x] **Amigos Share Club** (`src/amigosshareclub`)
-- [x] ~~**Dark Mahou** (`src/darkmahou`)~~ (Deprecated)
+
+---
+
+## In Development / Planned
+
+- [ ] **Brazilian Torrent Aggregator**
+  - *Type:* Anime Torrent Provider
+  - *Status:* In production, but not yet available.
+- [ ] **Google Drive**
+  - *Type:* Online Streaming Provider
+  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledrive`
+- [ ] **Google Drive (Index)**
+  - *Type:* Online Streaming Provider
+  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
+- [ ] **Cubari.moe**
+  - *Type:* Manga Provider
+- [ ] **Sakura Mangas**
+  - *Type:* Manga Provider
+  - *Reference:* `https://sakuramangas.org/`
+  - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
+
+## Deprecated
+
+- [x] ~~**Dark Mahou** (`src/darkmahou`)~~
+  - *Type:* Online Streaming Provider & Anime Torrent Provider
