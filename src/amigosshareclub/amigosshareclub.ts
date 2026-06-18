@@ -19,8 +19,18 @@ class Provider {
     }
 
     async smartSearch(opts: AnimeSmartSearchOptions): Promise<AnimeTorrent[]> {
-        // Smart search not supported, but we can fallback to normal search
-        return this.fetchTorrents(opts.query || opts.media.englishTitle || opts.media.romajiTitle || "");
+        // Remove trailing numbers from query (e.g. "Anime Name 05" -> "Anime Name")
+        let query = opts.query || opts.media.englishTitle || opts.media.romajiTitle || "";
+        query = query.replace(/\s+0*\d{1,3}$/, '').trim();
+        
+        const torrents = await this.fetchTorrents(query);
+        
+        // Se a busca inteligente estiver procurando um episódio específico e não for batch
+        if (opts.episodeNumber > 0 && !opts.batch) {
+            return torrents.filter(t => t.episodeNumber === opts.episodeNumber || t.episodeNumber === -1);
+        }
+        
+        return torrents;
     }
 
     async getTorrentInfoHash(torrent: AnimeTorrent): Promise<string> {
@@ -99,6 +109,30 @@ class Provider {
                     }
 
                     if (name && dlLink) {
+                        let epNum = -1;
+                        let isBatch = false;
+
+                        // Tenta extrair o episódio do formato S01E06 ou S1E6
+                        const epMatch = name.match(/S\d+E(\d+)/i);
+                        if (epMatch) {
+                            epNum = parseInt(epMatch[1]);
+                        } else {
+                            // Tenta extrair de formatos como "- 06"
+                            const altMatch = name.match(/-\s*(\d{2,4})\b/);
+                            if (altMatch) {
+                                epNum = parseInt(altMatch[1]);
+                            }
+                        }
+
+                        // Identifica se é batch (temporada completa)
+                        const nameLower = name.toLowerCase();
+                        if (nameLower.includes("batch") || nameLower.includes("completo") || name.match(/S\d+(\s|$)/i)) {
+                            // Se tiver S01 sem E01, provavelmente é a temporada inteira
+                            if (!epMatch) {
+                                isBatch = true;
+                            }
+                        }
+
                         torrents.push({
                             name: name,
                             date: new Date().toISOString(),
@@ -112,8 +146,8 @@ class Provider {
                             magnetLink: "",
                             infoHash: "",
                             resolution: "",
-                            isBatch: false,
-                            episodeNumber: -1,
+                            isBatch: isBatch,
+                            episodeNumber: epNum,
                             isBestRelease: false,
                             confirmed: false,
                         });
