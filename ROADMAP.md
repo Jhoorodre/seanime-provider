@@ -37,12 +37,11 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
 - [ ] **Cubari.moe**
   - *Type:* Manga Provider
-- [ ] **Sakura Mangas**
+## Deprecated
+
+- [x] ~~**Sakura Mangas** (`src/sakuramangas`)~~
   - *Type:* Manga Provider
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
-
-## Deprecated
-
 - [x] ~~**Dark Mahou** (`src/darkmahou`)~~
   - *Type:* Online Streaming Provider & Anime Torrent Provider
