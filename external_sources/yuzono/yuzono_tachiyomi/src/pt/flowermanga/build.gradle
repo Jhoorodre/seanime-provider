@@ -1,0 +1,10 @@
+ext {
+    extName = 'FlowerManga.net'
+    extClass = '.FlowerMangaDotNet'
+    themePkg = 'madara'
+    baseUrl = 'https://flowermangas.net'
+    overrideVersionCode = 4
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

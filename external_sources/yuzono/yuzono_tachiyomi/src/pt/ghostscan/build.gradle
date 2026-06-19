@@ -1,0 +1,10 @@
+ext {
+    extName = 'Ghost Scan'
+    extClass = '.GhostScan'
+    themePkg = 'madara'
+    baseUrl = 'https://ghostscan.xyz'
+    overrideVersionCode = 2
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

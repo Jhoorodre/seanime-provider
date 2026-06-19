@@ -1,0 +1,8 @@
+ext {
+    extName = 'RF Dragon Scan'
+    extClass = '.RFDragonScan'
+    extVersionCode = 12
+    isNsfw = false
+}
+
+apply plugin: "kei.plugins.extension.legacy"

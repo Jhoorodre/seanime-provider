@@ -1,0 +1,10 @@
+ext {
+    extName = 'Cerise Scan'
+    extClass = '.CeriseScan'
+    themePkg = 'madara'
+    baseUrl = 'https://loverstoon.com'
+    overrideVersionCode = 11
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

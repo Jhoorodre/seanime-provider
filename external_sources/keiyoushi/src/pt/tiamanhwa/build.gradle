@@ -1,0 +1,10 @@
+ext {
+    extName = 'Tia Manhwa'
+    extClass = '.TiaManhwa'
+    themePkg = 'madara'
+    baseUrl = 'https://tiamanhwa.com'
+    overrideVersionCode = 3
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

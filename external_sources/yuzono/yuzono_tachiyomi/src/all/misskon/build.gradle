@@ -1,0 +1,9 @@
+ext {
+    kmkVersionCode = 10
+    extName = 'MissKon'
+    extClass = '.MissKon'
+    extVersionCode = 4
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

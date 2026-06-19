@@ -1,0 +1,10 @@
+ext {
+    extName = 'Ler Mangas'
+    extClass = '.LerMangas'
+    themePkg = 'madara'
+    baseUrl = 'https://lermangas.me'
+    overrideVersionCode = 1
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

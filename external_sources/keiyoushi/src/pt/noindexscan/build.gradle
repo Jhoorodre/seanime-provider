@@ -1,0 +1,10 @@
+ext {
+    extName = 'Hanami Heaven'
+    extClass = '.HanamiHeaven'
+    themePkg = 'madara'
+    baseUrl = 'https://hanamiheaven.org'
+    overrideVersionCode = 5
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"

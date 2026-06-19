@@ -1,0 +1,10 @@
+ext {
+    extName = 'Limbo Scan'
+    extClass = '.LimboScan'
+    themePkg = 'madara'
+    baseUrl = 'https://limboscan.com.br'
+    overrideVersionCode = 1
+    isNsfw = true
+}
+
+apply plugin: "kei.plugins.extension.legacy"
