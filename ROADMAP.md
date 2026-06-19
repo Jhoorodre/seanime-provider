@@ -21,7 +21,6 @@ This document outlines the planned extensions and providers to be implemented, a
 ## Anime Torrent Providers
 
 - [x] **Dark Mahou** (`src/darkmahou`)
-- [x] **Brazilian Torrent Aggregator** (`src/ptbr-aggregator`)
 
 ---
 
@@ -30,6 +29,10 @@ This document outlines the planned extensions and providers to be implemented, a
 - [ ] **Amigos Share Club** (`src/amigosshareclub`)
   - *Type:* Anime Torrent Provider
   - *Status:* In development (Search filter issues)
+
+- [ ] **Brazilian Torrent Aggregator** (`src/ptbr-aggregator`)
+  - *Type:* Anime Torrent Provider
+  - *Status:* In production, but not yet fully available.
 
 - [ ] **Google Drive**
   - *Type:* Online Streaming Provider
