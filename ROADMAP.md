@@ -4,6 +4,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Manga Providers (pt-BR)
 
+- [x] **Cubari** ([`src/cubari`](./src/cubari))
+
 - [x] **Pizzaria Scan** ([`src/pizzariascan`](./src/pizzariascan))
 
 - [x] **Kuro Mangas** ([`src/kuromangas`](./src/kuromangas))
@@ -43,10 +45,6 @@ This document outlines the planned extensions and providers to be implemented, a
 - [ ] **Google Drive (Index)**
   - *Type:* Online Streaming Provider
   - *Status:* In development
-  
-- [ ] **Cubari.moe**
-  - *Type:* Manga Provider
-  - *status:* in development 
   
 ## Deprecated
 

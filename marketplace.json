@@ -225,5 +225,16 @@
     "type": "manga-provider",
     "language": "typescript",
     "lang": "pt-BR"
+  },
+  {
+    "id": "cubari",
+    "name": "Cubari",
+    "description": "Cubari is a website to read manga online that optimizes images and allows you to access content from multiple sources.",
+    "author": "Jhoorodr",
+    "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/cubari/cubari.json",
+    "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/cubari.png",
+    "type": "manga-provider",
+    "language": "typescript",
+    "lang": "MULTI"
   }
 ]
