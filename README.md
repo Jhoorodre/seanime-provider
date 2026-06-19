@@ -1,50 +1,52 @@
+[🇺🇸 English](README.md) | [🇧🇷 Português](README.pt-BR.md)
+
 # Seanime Providers (pt-BR) 🇧🇷
 
-Este repositório contém uma coleção oficial de extensões (Providers) Brasileiros e em Português para o aplicativo [Seanime](https://github.com/5rahim/seanime). 
+This repository contains an official collection of Brazilian and Portuguese extensions (Providers) for the [Seanime](https://github.com/5rahim/seanime) application.
 
-## 📦 Como instalar as extensões no Seanime
+## 📦 How to install extensions in Seanime
 
-Para instalar qualquer uma das extensões deste repositório, basta adicionar o endereço do nosso **Marketplace** nas configurações do seu Seanime:
+To install any of the extensions from this repository, simply add our **Marketplace** URL in your Seanime settings:
 
-1. Abra o Seanime.
-2. Vá em **Settings** > **Extensions**.
-3. Adicione a seguinte URL no campo de repositório de extensões:
+1. Open Seanime.
+2. Go to **Settings** > **Extensions**.
+3. Add the following URL to the extension repository field:
    ```text
    https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/marketplace.json
    ```
-4. Navegue pelas extensões disponíveis e clique em instalar!
+4. Browse the available extensions and click install!
 
 ---
 
-## 🏗️ Estrutura do Repositório
+## 🏗️ Repository Structure
 
-- `src/` - Contém o código-fonte (`.ts`) e os manifestos (`.json`) de todas as extensões desenvolvidas localmente.
-- `icon/` - Imagens PNG (ícones) utilizadas pelas extensões no Marketplace.
-- `doc/` - Documentação oficial da API do Seanime para ajudar no desenvolvimento de novos provedores.
-- `.github/workflows/` - Automações de CI/CD (Testes, Validação e Deploy).
-- `marketplace.json` - O registro global de extensões. Toda extensão presente em `src/` **deve** estar registrada aqui, além de provedores externos da comunidade.
-
----
-
-## 🤖 CI/CD e Automações (GitHub Actions)
-
-Este repositório possui uma infraestrutura completa de Integração Contínua para facilitar o desenvolvimento:
-
-1. **Validação Automática (`deploy.yml`)**
-   Sempre que um `git push` ou `Pull Request` for criado, o GitHub Actions irá validar automaticamente todas as extensões dentro de `src/`. Ele verifica a estrutura do JSON, garante que a classe do provedor foi exportada no TypeScript e checa se a extensão foi listada no `marketplace.json`. 
-   *(Extensões marcadas com `"isDevelopment": true` no manifesto receberão a tag 🚧 In Dev).*
-
-2. **Atualizador Dinâmico de Versões (`version-bump.yml`)**
-   Para atualizar a versão de uma extensão, não é necessário editar o JSON manualmente. 
-   - Vá na aba **Actions**.
-   - Selecione **Auto Version Bump**.
-   - Digite o nome da pasta da extensão (ex: `darkmahou`) e selecione o tipo de bump (`patch`, `minor` ou `major`). 
-   O robô fará o commit, criará uma Tag de Release e fará o push automaticamente.
+- `src/` - Contains the source code (`.ts`) and manifests (`.json`) for all locally developed extensions.
+- `icon/` - PNG images (icons) used by the extensions in the Marketplace.
+- `doc/` - Official Seanime API documentation to help with the development of new providers.
+- `.github/workflows/` - CI/CD Automations (Testing, Validation, and Deployment).
+- `marketplace.json` - The global extension registry. Every extension present in `src/` **must** be registered here, alongside external community providers.
 
 ---
 
-## 📚 Roadmap & Contribuição
+## 🤖 CI/CD and Automations (GitHub Actions)
 
-Confira o arquivo [ROADMAP.md](./ROADMAP.md) para ver o status de cada provedor, quais extensões estão em desenvolvimento e quais estão bloqueadas/depreciadas.
+This repository features a complete Continuous Integration infrastructure to streamline development:
 
-Sinta-se livre para abrir Pull Requests com melhorias, novos provedores ou correções!
+1. **Automatic Validation (`deploy.yml`)**
+   Whenever a `git push` or `Pull Request` is created, GitHub Actions will automatically validate all extensions inside `src/`. It checks the JSON structure, ensures the provider class is exported in TypeScript, and cross-references the extension with `marketplace.json`.
+   *(Extensions marked with `"isDevelopment": true` in the manifest will receive a 🚧 In Dev tag).*
+
+2. **Dynamic Version Updater (`version-bump.yml`)**
+   To update an extension's version, you do not need to edit the JSON manually.
+   - Go to the **Actions** tab.
+   - Select **Auto Version Bump**.
+   - Type the extension's folder name (e.g., `darkmahou`) and select the bump type (`patch`, `minor`, or `major`).
+   The bot will automatically commit, create a Release Tag, and push the changes.
+
+---
+
+## 📚 Roadmap & Contributing
+
+Check the [ROADMAP.md](./ROADMAP.md) file to see the status of each provider, which extensions are in development, and which are blocked/deprecated.
+
+Feel free to open Pull Requests with improvements, new providers, or bug fixes!
