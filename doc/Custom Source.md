@@ -2,13 +2,13 @@
 
 Note: You cannot test custom sources in the playground. Load them in development mode ([like here](https://seanime.gitbook.io/seanime-extensions/content-providers/pages/MjcdvXTd5UlAZTG2Soio#id-2.-create-a-manifest-file)).
 
-{% hint style="warning" %}
-Difficulty: Moderate
-{% endhint %}
+> [!WARNING]
+> Difficulty: Moderate
 
 ## Type Definitions
 
-{% code title="custom-source.d.ts" %}
+**`custom-source.d.ts`**:
+
 
 ```typescript
 /// <reference path="./app.d.ts" />
@@ -47,21 +47,18 @@ declare abstract class CustomSource {
 
 ```
 
-{% endcode %}
 
 Keyword search the various $app types used here:
 
-{% embed url="<https://raw.githubusercontent.com/5rahim/seanime/refs/heads/main/internal/extension_repo/goja_plugin_types/app.d.ts>" %}
+[Link](<https://raw.githubusercontent.com/5rahim/seanime/refs/heads/main/internal/extension_repo/goja_plugin_types/app.d.ts>)
 
 ## Code
 
-{% hint style="warning" %}
-Do not change the name of the class. It must be Provider.
-{% endhint %}
+> [!WARNING]
+> Do not change the name of the class. It must be Provider.
 
-{% hint style="info" %}
-You can define the media objects in an external API and use fetch to retrieve them dynamically.
-{% endhint %}
+> [!NOTE]
+> You can define the media objects in an external API and use fetch to retrieve them dynamically.
 
 ### Media objects
 

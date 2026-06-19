@@ -1,8 +1,7 @@
 # Online Streaming Provider
 
-{% hint style="warning" %}
-Difficulty: Moderate
-{% endhint %}
+> [!WARNING]
+> Difficulty: Moderate
 
 <details>
 
@@ -18,7 +17,8 @@ npx seanime-tool g-template
 
 ## Types
 
-{% code title="online-streaming-provider.d.ts" %}
+**`online-streaming-provider.d.ts`**:
+
 
 ```typescript
 declare type SearchResult = {
@@ -106,13 +106,11 @@ declare abstract class AnimeProvider {
 
 ```
 
-{% endcode %}
 
 ## Code
 
-{% hint style="warning" %}
-Do not change the name of the class. It must be Provider.
-{% endhint %}
+> [!WARNING]
+> Do not change the name of the class. It must be Provider.
 
 ```typescript
 /// <reference path="./online-streaming-provider.d.ts" />

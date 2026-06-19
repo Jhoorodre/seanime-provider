@@ -11,21 +11,9 @@ Content providers are a type of extension used to add more sources to existing f
 
 ### Code the extension
 
-{% content-ref url="/pages/99zRHzdo6j2AQHQtBph6" %}
-[Anime Torrent Provider](/seanime-extensions/content-providers/anime-torrent-provider.md)
-{% endcontent-ref %}
-
-{% content-ref url="/pages/VknVhKLu357cUCzkis9Z" %}
-[Manga Provider](/seanime-extensions/content-providers/manga-provider.md)
-{% endcontent-ref %}
-
-{% content-ref url="/pages/kCikKP13hdklt5hmJFWF" %}
-[Online Streaming Provider](/seanime-extensions/content-providers/online-streaming-provider.md)
-{% endcontent-ref %}
-
-{% content-ref url="/pages/v8hRcPA70OoxCXw8YH1m" %}
-[Custom Source](/seanime-extensions/content-providers/custom-source.md)
-{% endcontent-ref %}
+* [Anime Torrent Provider](./Anime\ Torrent\ Provider.md)
+* [Manga Provider](./Manga\ Provider.md)
+* [Online Streaming Provider](./Online\ Streaming\ Provider.md)
 
 ### Test in the playground
 
@@ -44,13 +32,12 @@ You will be able to select the **method (function)** you want to test. Different
 
 ### Create the file
 
-{% hint style="warning" %}
-Make the ID unique in order to avoid conflicts.
+> [!WARNING]
+> Make the ID unique in order to avoid conflicts.
+>
+> The name of the file should be the same as the ID.
 
-The name of the file should be the same as the ID.
-{% endhint %}
-
-{% code title="my-original-extension-id.json" %}
+**`my-original-extension-id.json`**:
 
 ```json
 {
@@ -66,8 +53,6 @@ The name of the file should be the same as the ID.
     "payload": ""
 }
 ```
-
-{% endcode %}
 
 * `id`: ID of your extension.
 * `name`: The name of the extension.
@@ -101,17 +86,15 @@ If you just want to use it for yourself, just place the JSON file in the `extens
 
 This is a simple process. Just update the `version` field in the JSON file and paste the new code in the `payload` field.
 
-{% hint style="warning" %}
-Your extension might become incompatible with a later version of Seanime.
-
-Check the [Extension Changelog](/seanime-extensions/seanime/changelog.md) for breaking changes and update your code accordingly.
-{% endhint %}
+> [!WARNING]
+> Your extension might become incompatible with a later version of Seanime.
+> 
+> Check the Extension Changelog for breaking changes and update your code accordingly.
 
 <figure><img src="https://i.postimg.cc/RVzjPvNQ/Clean-Shot-2024-08-27-at-18-49-172x.webp" alt="" width="375"><figcaption></figcaption></figure>
 
-{% hint style="warning" %}
-Do not change your extension ID between updates
-{% endhint %}
+> [!WARNING]
+> Do not change your extension ID between updates
 
 ## Add user configuration (optional)
 
@@ -126,9 +109,8 @@ You can make it so users can enter arbitrary values that you can use in variable
 * Declare any number of **string** variables containing the configuration field keys you want to accept in the format `{{key}}`. These variables will be replaced with the values the user entered when the extension is loaded.
 * In your manifest file, add a `userConfig` field.
 
-{% hint style="info" %}
-The field's 'name' should be the same as the key between the double curly brackets in your code.
-{% endhint %}
+> [!NOTE]
+> The field's 'name' should be the same as the key between the double curly brackets in your code.
 
 ```json
 {

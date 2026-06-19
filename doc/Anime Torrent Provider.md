@@ -1,8 +1,7 @@
 # Anime Torrent Provider
 
-{% hint style="success" %}
-Difficulty: Easy
-{% endhint %}
+> [!TIP]
+> Difficulty: Easy
 
 <details>
 
@@ -18,7 +17,8 @@ npx seanime-tool g-template
 
 ## Types
 
-{% code title="anime-torrent-provider.d.ts" %}
+**`anime-torrent-provider.d.ts`**:
+
 
 ```typescript
 declare type AnimeProviderSmartSearchFilter = "batch" | "episodeNumber" | "resolution" | "query" | "bestReleases"
@@ -151,13 +151,11 @@ declare interface AnimeTorrent {
 }
 ```
 
-{% endcode %}
 
 ## Code
 
-{% hint style="warning" %}
-Do not change the name of the class. It must be Provider.
-{% endhint %}
+> [!WARNING]
+> Do not change the name of the class. It must be Provider.
 
 ```typescript
 /// <reference path="./anime-torrent-provider.d.ts" />

@@ -1,8 +1,7 @@
 # Manga Provider
 
-{% hint style="success" %}
-Difficulty: Easy
-{% endhint %}
+> [!TIP]
+> Difficulty: Easy
 
 <details>
 
@@ -18,7 +17,8 @@ npx seanime-tool g-template
 
 ## Types
 
-{% code title="manga-provider.d.ts" %}
+**`manga-provider.d.ts`**:
+
 
 ```typescript
 declare type SearchResult = {
@@ -66,13 +66,11 @@ declare abstract class MangaProvider {
 }
 ```
 
-{% endcode %}
 
 ## Code
 
-{% hint style="warning" %}
-Do not change the name of the class. It must be Provider.
-{% endhint %}
+> [!WARNING]
+> Do not change the name of the class. It must be Provider.
 
 ```typescript
 /// <reference path="./manga-provider.d.ts" />
