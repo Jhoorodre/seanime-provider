@@ -98,7 +98,7 @@ fi
 if [ "$PROMOTED" = "true" ]; then
   git add marketplace.json ROADMAP.md
 fi
-git commit -m "🔖 Bump $NAME version to $NEW_VERSION ($BUMP_TYPE) [skip ci]"
+git commit -m "🔖 Bump $NAME version to $NEW_VERSION ($BUMP_TYPE)"
 git tag -a "$EXT_FOLDER-v$NEW_VERSION" -m "Release $NAME v$NEW_VERSION"
 
 # Pergunta se deseja dar Push agora
