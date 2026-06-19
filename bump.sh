@@ -55,10 +55,10 @@ if [ "$IS_DEV" = "true" ]; then
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     # 1. Remover do JSON local
-    jq 'del(.isDevelopment)' "$MANIFEST_PATH" > tmp.json && mv tmp.json "$MANIFEST_PATH"
+    jq '.isDevelopment = false' "$MANIFEST_PATH" > tmp.json && mv tmp.json "$MANIFEST_PATH"
     
     # 2. Remover do marketplace.json
-    jq --arg id "$EXT_FOLDER" 'map(if .id == $id then del(.isDevelopment) else . end)' marketplace.json > tmp_mkp.json && mv tmp_mkp.json marketplace.json
+    jq --arg id "$EXT_FOLDER" 'map(if .id == $id then .isDevelopment = false else . end)' marketplace.json > tmp_mkp.json && mv tmp_mkp.json marketplace.json
     
     # 3. Mover no ROADMAP.md
     EXT_TYPE=$(jq -r '.type' "$MANIFEST_PATH")
