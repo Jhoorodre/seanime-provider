@@ -36,14 +36,15 @@ This document outlines the planned extensions and providers to be implemented, a
 
 - [ ] **Google Drive**
   - *Type:* Online Streaming Provider
-  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledrive`
+  - *Status:* In development
 
 - [ ] **Google Drive (Index)**
   - *Type:* Online Streaming Provider
-  - *Reference:* `providers_source/tmp-anime-extensions/src/all/googledriveindex`
+  - *Status:* In development
   
 - [ ] **Cubari.moe**
   - *Type:* Manga Provider
+  - *status:* in development 
   
 ## Deprecated
 
