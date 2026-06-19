@@ -4,33 +4,33 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Manga Providers (pt-BR)
 
-- [x] **Kuro Mangas** (`src/kuromangas`)
-- [x] **MangaLivre.tv / ToonLivre** (`src/mangalivre.tv`)
-- [x] **Mediocre Scan** (`src/mediocrescan`)
-- [x] **Nexus Toons** (`src/nexustoons`)
-- [x] **Manhastro** (`src/manhastro`)
+- [x] **Kuro Mangas** ([`src/kuromangas`](./src/kuromangas))
+- [x] **MangaLivre.tv / ToonLivre** ([`src/mangalivre.tv`](./src/mangalivre.tv))
+- [x] **Mediocre Scan** ([`src/mediocrescan`](./src/mediocrescan))
+- [x] **Nexus Toons** ([`src/nexustoons`](./src/nexustoons))
+- [x] **Manhastro** ([`src/manhastro`](./src/manhastro))
 
 ## Online Streaming Providers
 
-- [x] **AnimesOnlineCC** (`src/animesonlinecc`)
-- [x] **Dattebayo BR** (`src/dattebayobr`)
-- [x] **Goyabu** (`src/goyabu`)
-- [x] **Hinata Soul** (`src/hinatasoul`)
-- [x] **TorrentClaw** (`src/torrentclaw`)
+- [x] **AnimesOnlineCC** ([`src/animesonlinecc`](./src/animesonlinecc))
+- [x] **Dattebayo BR** ([`src/dattebayobr`](./src/dattebayobr))
+- [x] **Goyabu** ([`src/goyabu`](./src/goyabu))
+- [x] **Hinata Soul** ([`src/hinatasoul`](./src/hinatasoul))
+- [x] **TorrentClaw** ([`src/torrentclaw`](./src/torrentclaw))
 
 ## Anime Torrent Providers
 
-- [x] **Dark Mahou** (`src/darkmahou`)
+- [x] **Dark Mahou** ([`src/darkmahou`](./src/darkmahou))
 
 ---
 
 ## In Development / Planned
 
-- [ ] **Amigos Share Club** (`src/amigosshareclub`)
+- [ ] **Amigos Share Club** ([`src/amigosshareclub`](./src/amigosshareclub))
   - *Type:* Anime Torrent Provider
   - *Status:* In development (Search filter issues)
 
-- [ ] **Brazilian Torrent Aggregator** (`src/ptbr-aggregator`)
+- [ ] **Brazilian Torrent Aggregator** ([`src/ptbr-aggregator`](./src/ptbr-aggregator))
   - *Type:* Anime Torrent Provider
   - *Status:* In production, but not yet fully available.
 
@@ -48,7 +48,7 @@ This document outlines the planned extensions and providers to be implemented, a
   
 ## Deprecated
 
-- [x] ~~**Sakura Mangas** (`src/sakuramangas`)~~
+- [x] ~~**Sakura Mangas** ([`src/sakuramangas`](./src/sakuramangas))~~
   - *Type:* Manga Provider
   - *Reference:* `https://sakuramangas.org/`
   - *Status:* ❌ BLOCKED (Cloudflare Under Attack Mode + TLS Fingerprinting makes it impossible to fetch without a real browser engine in Seanime)
