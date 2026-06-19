@@ -6,7 +6,7 @@ class Provider {
     private cdnUrl = "https://cdn.kuromangas.com"
     
     // Constants for Decryption
-    private VITE_API_ENC_KEY = "5ato8l674shksfE2oMwajkun9TuYTusF4jKdqEwhUEft9787147pasdssde345h"
+    private VITE_API_ENC_KEY = "5ato8l674shksfE2oMmieshonuYTusF4jKdqEwhUEft9787147sadr322"
     private HOSTNAME_PART = "kuromangas.com::v2"
     private ANTIBOT = "x9_4v2_b"
 
