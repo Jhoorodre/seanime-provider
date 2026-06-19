@@ -55,12 +55,24 @@ To make development easier, this repository includes local scripts to automate r
    ./create-provider.sh
    ```
 
-2. **Local Version Bump (`./bump.sh`)**
-   Quickly bump an extension's version, commit, tag, and push directly from your terminal without opening the GitHub Actions tab.
+2. **Local Version Bump & Promotion (`./bump.sh`)**
+   Quickly bump an extension's version, commit, tag, and push directly from your terminal. If the extension is marked as "In Development", the script will interactively ask if you want to promote it to **Production** (which automatically cleans up development flags from the manifests and updates the `ROADMAP.md` status).
    ```bash
    ./bump.sh <folder_name> [patch|minor|major]
    # Example: ./bump.sh darkmahou patch
    ```
+
+---
+
+## 📖 Developer Documentation
+
+If you are developing new extensions or improving existing ones, refer to the official Seanime API documentation available in the `doc/` folder:
+
+- [Anime Torrent Provider API](./doc/Anime%20Torrent%20Provider.md)
+- [Manga Provider API](./doc/Manga%20Provider.md)
+- [Online Streaming Provider API](./doc/Online%20Streaming%20Provider.md)
+- [Custom Source API](./doc/Custom%20Source.md)
+- [Write, test, share](./doc/Write,%20test,%20share.md)
 
 ---
 

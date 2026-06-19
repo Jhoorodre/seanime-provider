@@ -55,12 +55,24 @@ Para facilitar o desenvolvimento na sua máquina, este repositório conta com sc
    ./create-provider.sh
    ```
 
-2. **Bump de Versão Local (`./bump.sh`)**
-   Sobe a versão de uma extensão, faz o commit, gera a Tag de Release e envia pro GitHub direto do seu terminal, sem precisar abrir o site.
+2. **Bump de Versão e Promoção (`./bump.sh`)**
+   Sobe a versão de uma extensão, faz o commit, gera a Tag e envia pro GitHub direto do seu terminal. Além disso, se a extensão estiver "Em Desenvolvimento", o script perguntará de forma interativa se você deseja promovê-la para **Produção** (o que remove as flags de dev dos JSONs e atualiza o seu status no `ROADMAP.md` de forma totalmente automática).
    ```bash
    ./bump.sh <nome_da_pasta> [patch|minor|major]
    # Exemplo: ./bump.sh darkmahou patch
    ```
+
+---
+
+## 📖 Documentação para Desenvolvedores
+
+Se você está criando novas extensões ou melhorando as que já existem, consulte a documentação oficial da API do Seanime que mantemos na pasta `doc/`:
+
+- [API de Provedor de Anime Torrent](./doc/Anime%20Torrent%20Provider.md)
+- [API de Provedor de Mangá](./doc/Manga%20Provider.md)
+- [API de Provedor de Streaming Online](./doc/Online%20Streaming%20Provider.md)
+- [API de Fonte Customizada](./doc/Custom%20Source.md)
+- [Escrever, testar e compartilhar](./doc/Write,%20test,%20share.md)
 
 ---
 

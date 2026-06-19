@@ -44,8 +44,60 @@ jq --arg version "$NEW_VERSION" '.version = $version' "$MANIFEST_PATH" > tmp.jso
 
 echo "✅ Versão do $NAME atualizada localmente: $CURRENT_VERSION -> $NEW_VERSION"
 
+# Checar se a extensão está em desenvolvimento
+IS_DEV=$(jq -r '.isDevelopment // false' "$MANIFEST_PATH")
+PROMOTED=false
+
+if [ "$IS_DEV" = "true" ]; then
+  echo "-----------------------------------------------"
+  echo "🚧 Esta extensão está marcada como 'Em Desenvolvimento'."
+  read -p "Você finalizou a extensão e deseja movê-la para PRODUÇÃO agora? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # 1. Remover do JSON local
+    jq 'del(.isDevelopment)' "$MANIFEST_PATH" > tmp.json && mv tmp.json "$MANIFEST_PATH"
+    
+    # 2. Remover do marketplace.json
+    jq --arg id "$EXT_FOLDER" 'map(if .id == $id then del(.isDevelopment) else . end)' marketplace.json > tmp_mkp.json && mv tmp_mkp.json marketplace.json
+    
+    # 3. Mover no ROADMAP.md
+    EXT_TYPE=$(jq -r '.type' "$MANIFEST_PATH")
+    SECTION=""
+    if [ "$EXT_TYPE" = "manga-provider" ]; then SECTION="## Manga Providers (pt-BR)"; fi
+    if [ "$EXT_TYPE" = "onlinestream-provider" ]; then SECTION="## Online Streaming Providers"; fi
+    if [ "$EXT_TYPE" = "anime-torrent-provider" ]; then SECTION="## Anime Torrent Providers"; fi
+    
+    if [ -n "$SECTION" ] && [ -f "ROADMAP.md" ]; then
+        # Escapar o nome para usar no Regex do awk
+        SAFE_NAME=$(echo "$NAME" | sed 's/[.[\*^$()+?{|]/\\\\&/g')
+        awk -v slug="$EXT_FOLDER" -v name="$NAME" -v safename="$SAFE_NAME" -v sec="$SECTION" '
+        BEGIN { skip = 0 }
+        $0 ~ "- \\[ \\] \\*\\*" safename "\\*\\*" { skip = 3; next }
+        skip > 0 { skip--; next }
+        $0 == sec {
+            print
+            print ""
+            print "- [x] **" name "** ([`src/" slug "`](./src/" slug "))"
+            next
+        }
+        { print }
+        ' ROADMAP.md > tmp_road.md && mv tmp_road.md ROADMAP.md
+    fi
+    
+    echo "🎉 Promoção para Produção concluída (isDevelopment removido e Roadmap atualizado)!"
+    PROMOTED=true
+  fi
+  echo "-----------------------------------------------"
+fi
+
 # Adiciona ao Git
-git add "$MANIFEST_PATH"
+git add "$EXT_DIR"
+if [ -f "icon/$EXT_FOLDER.png" ]; then
+  git add "icon/$EXT_FOLDER.png"
+fi
+if [ "$PROMOTED" = "true" ]; then
+  git add marketplace.json ROADMAP.md
+fi
 git commit -m "🔖 Bump $NAME version to $NEW_VERSION ($BUMP_TYPE) [skip ci]"
 git tag -a "$EXT_FOLDER-v$NEW_VERSION" -m "Release $NAME v$NEW_VERSION"
 
