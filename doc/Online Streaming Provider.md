@@ -7,10 +7,10 @@
 
 <summary>Use bootstrapping command</summary>
 
-You can use this third-party tool to help you quickly bootstrap a folder locally
+You can use the local `create-provider.sh` script to help you quickly bootstrap a folder, register the extension, and extract high-quality icons:
 
 ```bash
-npx seanime-tool g-template
+./create-provider.sh
 ```
 
 </details>
