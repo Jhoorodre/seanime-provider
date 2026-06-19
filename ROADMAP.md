@@ -4,6 +4,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Manga Providers (pt-BR)
 
+- [x] **Pizzaria Scan** ([`src/pizzariascan`](./src/pizzariascan))
+
 - [x] **Kuro Mangas** ([`src/kuromangas`](./src/kuromangas))
 - [x] **MangaLivre.tv / ToonLivre** ([`src/mangalivre.tv`](./src/mangalivre.tv))
 - [x] **Mediocre Scan** ([`src/mediocrescan`](./src/mediocrescan))
