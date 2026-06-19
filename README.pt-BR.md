@@ -45,6 +45,25 @@ Este repositório possui uma infraestrutura completa de Integração Contínua p
 
 ---
 
+## 🛠️ Ferramentas & Scripts Locais
+
+Para facilitar o desenvolvimento na sua máquina, este repositório conta com scripts locais que automatizam processos chatos:
+
+1. **Criador Automático de Provedor (`./create-provider.sh`)**
+   Um script interativo que monta uma nova extensão do zero. Ele cria a pasta, gera o código TypeScript inicial, monta o JSON do manifesto, e já injeta a extensão automaticamente no `marketplace.json` com a tag "Em Desenvolvimento".
+   ```bash
+   ./create-provider.sh
+   ```
+
+2. **Bump de Versão Local (`./bump.sh`)**
+   Sobe a versão de uma extensão, faz o commit, gera a Tag de Release e envia pro GitHub direto do seu terminal, sem precisar abrir o site.
+   ```bash
+   ./bump.sh <nome_da_pasta> [patch|minor|major]
+   # Exemplo: ./bump.sh darkmahou patch
+   ```
+
+---
+
 ## 📚 Roadmap & Contribuição
 
 Confira o arquivo [ROADMAP.md](./ROADMAP.md) para ver o status de cada provedor, quais extensões estão em desenvolvimento e quais estão bloqueadas/depreciadas.

@@ -45,6 +45,25 @@ This repository features a complete Continuous Integration infrastructure to str
 
 ---
 
+## 🛠️ Local Tools & Scripts
+
+To make development easier, this repository includes local scripts to automate repetitive tasks directly from your terminal:
+
+1. **Create New Provider (`./create-provider.sh`)**
+   An interactive script that scaffolds a new provider from scratch. It creates the folder, generates the TypeScript boilerplate, creates the JSON manifest, and automatically injects the new extension into `marketplace.json` marked as "In Development". 
+   ```bash
+   ./create-provider.sh
+   ```
+
+2. **Local Version Bump (`./bump.sh`)**
+   Quickly bump an extension's version, commit, tag, and push directly from your terminal without opening the GitHub Actions tab.
+   ```bash
+   ./bump.sh <folder_name> [patch|minor|major]
+   # Example: ./bump.sh darkmahou patch
+   ```
+
+---
+
 ## 📚 Roadmap & Contributing
 
 Check the [ROADMAP.md](./ROADMAP.md) file to see the status of each provider, which extensions are in development, and which are blocked/deprecated.

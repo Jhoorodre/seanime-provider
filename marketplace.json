@@ -8,7 +8,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/darkmahou.png",
     "type": "anime-torrent-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "kuromangas",
@@ -19,7 +20,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/kuromangas.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "hinatasoul-provider",
@@ -30,7 +32,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/hinatasoul.png",
     "type": "onlinestream-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "nexustoons",
@@ -41,7 +44,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/nexustoons.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "manhastro",
@@ -52,7 +56,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/manhastro.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "animesonlinecc-provider",
@@ -63,7 +68,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/animesonlinecc.png",
     "type": "onlinestream-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "torrentclaw",
@@ -74,7 +80,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/torrentclaw.png",
     "type": "anime-torrent-provider",
     "language": "typescript",
-    "lang": "multi"
+    "lang": "multi",
+    "isDevelopment": false
   },
   {
     "id": "mediocrescan",
@@ -85,7 +92,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/mediocrescan.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "goyabu-provider",
@@ -96,7 +104,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/goyabu.png",
     "type": "onlinestream-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "dattebayobr-provider",
@@ -107,7 +116,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/dattebayobr.png",
     "type": "onlinestream-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "mangalivre-tv",
@@ -118,7 +128,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/mangalivre.tv.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "sakuramangas",
@@ -129,7 +140,8 @@
     "icon": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/master/icon/sakuramangas.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt-BR"
+    "lang": "pt-BR",
+    "isDevelopment": false
   },
   {
     "id": "anitube",
@@ -140,7 +152,8 @@
     "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anitube.png",
     "type": "onlinestream-provider",
     "language": "typescript",
-    "lang": "pt"
+    "lang": "pt",
+    "isDevelopment": false
   },
   {
     "id": "ptscans-provider",
@@ -151,7 +164,8 @@
     "icon": "https://raw.githubusercontent.com/SKRAPT/PT-Scans/main/upscan.png",
     "type": "manga-provider",
     "language": "javascript",
-    "lang": "pt"
+    "lang": "pt",
+    "isDevelopment": false
   },
   {
     "id": "mangaflix-ptbr",
@@ -162,7 +176,8 @@
     "icon": "https://raw.githubusercontent.com/SKRAPT/MangaFlix/main/MangaFlix.png",
     "type": "manga-provider",
     "language": "javascript",
-    "lang": "pt"
+    "lang": "pt",
+    "isDevelopment": false
   },
   {
     "id": "hipercool-provider-v3",
@@ -173,7 +188,8 @@
     "icon": "https://raw.githubusercontent.com/SKRAPT/Hipercool-Seanime/main/hipercool.png",
     "type": "manga-provider",
     "language": "typescript",
-    "lang": "pt"
+    "lang": "pt",
+    "isDevelopment": false
   },
   {
     "id": "ptbr-aggregator",
