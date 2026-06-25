@@ -10,10 +10,24 @@ class Provider {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "x-toonlivre-client": "web-t",
+        "x-toonlivre-client": "web-x",
         "Referer": "https://toonlivre.net/",
         "Pragma": "no-cache",
         "Cache-Control": "no-cache"
+    }
+
+    private async getViewerCookie(): Promise<string> {
+        const res = await fetch(this.baseUrl, { headers: this.defaultHeaders })
+        let cookie = ""
+        if (typeof res.headers.get === "function") {
+            cookie = res.headers.get("set-cookie") || ""
+        } else {
+            for (const k in res.headers as any) {
+                if (k.toLowerCase() === "set-cookie") { cookie = (res.headers as any)[k]; break }
+            }
+        }
+        const match = cookie.match(/tl_viewer=([^;]+)/)
+        return match ? match[1] : ""
     }
 
     private async getToken(): Promise<string> {
@@ -26,7 +40,7 @@ class Provider {
             body: JSON.stringify({ email: this.email, password: this.password })
         })
         if (!res.ok) {
-            const body = await res.text().catch(() => "")
+            const body = await res.text()
             throw `Login falhou: ${res.status} - ${body}`
         }
         let cookie = ""
@@ -168,13 +182,17 @@ class Provider {
             const pagesUrl = `${this.apiUrl}/mangas/${mId}/chapters/${cId}`
             console.log("Fetching chapter pages from ToonLivre API:", pagesUrl)
 
+            const viewer = await this.getViewerCookie()
             const token = await this.getToken()
+            const cookieParts = [`access_token=${token}`]
+            if (viewer) cookieParts.push(`tl_viewer=${viewer}`)
             const response = await fetch(pagesUrl, {
-                headers: { ...this.defaultHeaders, "Cookie": `access_token=${token}` }
+                headers: { ...this.defaultHeaders, "Cookie": cookieParts.join("; ") }
             })
 
             if (!response.ok) {
-                console.error(`Failed to fetch chapter pages: ${response.status}`)
+                const body = await response.text()
+                console.error(`Failed to fetch chapter pages: ${response.status} - ${body}`)
                 return []
             }
             
