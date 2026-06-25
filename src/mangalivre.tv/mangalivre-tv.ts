@@ -1,29 +1,47 @@
 /// <reference path="./manga-provider.d.ts" />
 
-/**
- * ToonLivre Provider (formerly MangaLivre)
- * Uses the new JSON API architecture
- * Compatible with Seanime Extension Playground
- */
 class Provider {
     private readonly baseUrl = "https://toonlivre.net"
     private readonly apiUrl = "https://toonlivre.net/api"
-    
-    // HTTP Headers
+    private email = "{{email}}"
+    private password = "{{password}}"
+
     private readonly defaultHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
+        "x-toonlivre-client": "web-t",
+        "Referer": "https://toonlivre.net/",
         "Pragma": "no-cache",
         "Cache-Control": "no-cache"
     }
 
-    /**
-     * Returns provider configuration settings
-     */
+    private async getToken(): Promise<string> {
+        if (!this.email || !this.password || this.email.startsWith("{{") || this.password.startsWith("{{")) {
+            throw "E-mail e senha são obrigatórios nas configurações do provedor."
+        }
+        const res = await fetch(`${this.apiUrl}/auth/login`, {
+            method: "POST",
+            headers: { ...this.defaultHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ email: this.email, password: this.password })
+        })
+        if (!res.ok) {
+            const body = await res.text().catch(() => "")
+            throw `Login falhou: ${res.status} - ${body}`
+        }
+        let cookie = ""
+        if (typeof res.headers.get === "function") {
+            cookie = res.headers.get("set-cookie") || ""
+        } else {
+            for (const k in res.headers as any) {
+                if (k.toLowerCase() === "set-cookie") { cookie = (res.headers as any)[k]; break }
+            }
+        }
+        const match = cookie.match(/access_token=([^;]+)/)
+        if (!match) throw "access_token não encontrado no cookie de login"
+        return match[1]
+    }
+
     getSettings(): Settings {
         return {
             supportsMultiLanguage: false,
@@ -149,9 +167,10 @@ class Provider {
 
             const pagesUrl = `${this.apiUrl}/mangas/${mId}/chapters/${cId}`
             console.log("Fetching chapter pages from ToonLivre API:", pagesUrl)
-            
+
+            const token = await this.getToken()
             const response = await fetch(pagesUrl, {
-                headers: this.defaultHeaders
+                headers: { ...this.defaultHeaders, "Cookie": `access_token=${token}` }
             })
 
             if (!response.ok) {
