@@ -18,6 +18,15 @@ Para instalar qualquer uma das extensões deste repositório, basta adicionar o 
 
 ---
 
+## 🌐 Marketplace da Comunidade
+
+Além deste repositório, a comunidade mantém um marketplace não-oficial com uma interface web para descobrir e instalar extensões de diversas fontes:
+
+- **Site:** [bas1874.github.io/Seanime-Marketplace](https://bas1874.github.io/Seanime-Marketplace/)
+- **Repositório:** [github.com/Bas1874/Seanime-Marketplace](https://github.com/Bas1874/Seanime-Marketplace)
+
+---
+
 ## 🏗️ Estrutura do Repositório
 
 - `src/` - Contém o código-fonte (`.ts`) e os manifestos (`.json`) de todas as extensões desenvolvidas localmente.
