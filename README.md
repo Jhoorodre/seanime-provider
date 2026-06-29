@@ -50,7 +50,9 @@ This repository features a complete Continuous Integration infrastructure to str
 To make development easier, this repository includes local scripts to automate repetitive tasks directly from your terminal:
 
 1. **Create New Provider (`./create-provider.sh`)**
-   An interactive script that scaffolds a new provider from scratch. It creates the folder, generates the TypeScript boilerplate, creates the JSON manifest, and automatically injects the new extension into `marketplace.json` marked as "In Development". 
+   Interactive script with two modes:
+   - **Create local provider** — scaffolds the folder, TypeScript boilerplate, JSON manifest, and registers it in `marketplace.json` as "In Development".
+   - **Add external provider** — paste the raw URL of a third-party manifest and it will be fetched, validated, and inserted into `marketplace.json` with an immediate push to GitHub.
    ```bash
    ./create-provider.sh
    ```

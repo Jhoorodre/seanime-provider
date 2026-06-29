@@ -4,6 +4,79 @@
 
 echo "✨ Criador Automático de Provedores Seanime ✨"
 echo "-----------------------------------------------"
+echo "O que deseja fazer?"
+echo "1) Criar novo provider local"
+echo "2) Adicionar provider externo ao marketplace"
+read -p "Selecione (1-2): " MODE
+echo "-----------------------------------------------"
+
+# ─── MODO 2: Provider Externo ───────────────────────────────────────────────
+if [ "$MODE" = "2" ]; then
+  read -p "🔗 Cole a URL raw do manifesto (.json): " RAW_URL
+  if [ -z "$RAW_URL" ]; then echo "❌ URL inválida"; exit 1; fi
+
+  echo "🔍 Buscando manifesto..."
+  MANIFEST=$(curl -sf "$RAW_URL")
+  if [ -z "$MANIFEST" ]; then
+    echo "❌ Não foi possível buscar o manifesto. Verifique a URL."
+    exit 1
+  fi
+
+  ID=$(echo "$MANIFEST"       | jq -r '.id        // empty')
+  NAME=$(echo "$MANIFEST"     | jq -r '.name      // empty')
+  DESC=$(echo "$MANIFEST"     | jq -r '.description // ""')
+  AUTHOR=$(echo "$MANIFEST"   | jq -r '.author    // ""')
+  TYPE=$(echo "$MANIFEST"     | jq -r '.type      // empty')
+  LANG=$(echo "$MANIFEST"     | jq -r '.lang      // "pt"')
+  LANGUAGE=$(echo "$MANIFEST" | jq -r '.language  // "typescript"')
+  ICON=$(echo "$MANIFEST"     | jq -r '.icon      // ""')
+  IS_DEV=$(echo "$MANIFEST"   | jq '.isDevelopment // false')
+
+  if [ -z "$ID" ] || [ -z "$NAME" ] || [ -z "$TYPE" ]; then
+    echo "❌ Manifesto inválido — falta id, name ou type:"
+    echo "$MANIFEST" | jq .
+    exit 1
+  fi
+
+  EXISTS=$(jq --arg id "$ID" '[.[] | select(.id == $id)] | length' marketplace.json)
+  if [ "$EXISTS" -gt 0 ]; then
+    echo "⚠️  Provider '$ID' já existe no marketplace.json. Nada alterado."
+    exit 0
+  fi
+
+  jq --arg id       "$ID" \
+     --arg name     "$NAME" \
+     --arg desc     "$DESC" \
+     --arg author   "$AUTHOR" \
+     --arg uri      "$RAW_URL" \
+     --arg icon     "$ICON" \
+     --arg type     "$TYPE" \
+     --arg language "$LANGUAGE" \
+     --arg lang     "$LANG" \
+     --argjson isDev "$IS_DEV" \
+     '. += [{
+       "id": $id,
+       "name": $name,
+       "description": $desc,
+       "author": $author,
+       "manifestURI": $uri,
+       "icon": $icon,
+       "type": $type,
+       "language": $language,
+       "lang": $lang,
+       "isDevelopment": $isDev
+     }]' marketplace.json > tmp.json && mv tmp.json marketplace.json
+
+  echo "✅ '$NAME' ($ID) adicionado ao marketplace.json!"
+  git add marketplace.json
+  git commit -m "🌐 Add external provider: $NAME"
+  git push origin master
+  echo "🚀 marketplace.json atualizado no GitHub!"
+  exit 0
+fi
+
+# ─── MODO 1: Provider Local (fluxo original) ────────────────────────────────
+if [ "$MODE" != "1" ]; then echo "❌ Opção inválida"; exit 1; fi
 
 read -p "📝 Nome do Provedor (ex: Super Anime): " NAME
 if [ -z "$NAME" ]; then echo "❌ Nome inválido"; exit 1; fi

@@ -50,7 +50,9 @@ Este repositório possui uma infraestrutura completa de Integração Contínua p
 Para facilitar o desenvolvimento na sua máquina, este repositório conta com scripts locais que automatizam processos chatos:
 
 1. **Criador Automático de Provedor (`./create-provider.sh`)**
-   Um script interativo que monta uma nova extensão do zero. Ele cria a pasta, gera o código TypeScript inicial, monta o JSON do manifesto, e já injeta a extensão automaticamente no `marketplace.json` com a tag "Em Desenvolvimento".
+   Script interativo com dois modos:
+   - **Criar novo provider local** — gera a pasta, o código TypeScript inicial, o JSON do manifesto e registra automaticamente no `marketplace.json` como "Em Desenvolvimento".
+   - **Adicionar provider externo** — cole a URL raw do manifesto de um provider de terceiros e ele será buscado, validado e inserido no `marketplace.json` automaticamente, com push imediato para o GitHub.
    ```bash
    ./create-provider.sh
    ```
