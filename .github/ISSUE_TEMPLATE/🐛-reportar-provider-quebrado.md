@@ -8,8 +8,8 @@ assignees: Jhoorodre
 
 ---
 
-### 📌 Provedor Afetado
-(Substitua aqui pelo nome do site. Ex: AnimeFire, Vizer, AniDong, etc.)
+### 📌 Provider Afetado
+(Substitua aqui pelo nome do site)
 
 ### ❌ O que está acontecendo?
 - [ ] Erro ao buscar títulos (Search)
