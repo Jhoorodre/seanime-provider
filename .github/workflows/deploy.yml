@@ -86,6 +86,34 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🚀 **All extensions passed validation!**" >> $GITHUB_STEP_SUMMARY
 
+          # Listar providers externos (presentes no marketplace mas sem pasta em src/)
+          LOCAL_IDS=""
+          for manifest in src/*/*.json; do
+            LOCAL_IDS="$LOCAL_IDS $(jq -r '.id' "$manifest")"
+          done
+
+          EXTERNALS=$(jq -r '.[] | select(.id) | [.name, .type, .isDevelopment // false, .author] | @tsv' marketplace.json)
+          EXTERNAL_COUNT=0
+          while IFS=$'\t' read -r EXT_NAME EXT_TYPE EXT_DEV EXT_AUTHOR; do
+            EXT_ID=$(jq -r --arg name "$EXT_NAME" '.[] | select(.name == $name) | .id' marketplace.json)
+            if ! echo "$LOCAL_IDS" | grep -qw "$EXT_ID"; then
+              if [ $EXTERNAL_COUNT -eq 0 ]; then
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "🌐 **External Providers**" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "| Provider | Type | Author | Status |" >> $GITHUB_STEP_SUMMARY
+                echo "|----------|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ "$EXT_DEV" = "true" ]; then
+                EXT_STATUS="🚧 In Dev"
+              else
+                EXT_STATUS="🌐 External"
+              fi
+              echo "| $EXT_NAME | $EXT_TYPE | $EXT_AUTHOR | $EXT_STATUS |" >> $GITHUB_STEP_SUMMARY
+              EXTERNAL_COUNT=$((EXTERNAL_COUNT+1))
+            fi
+          done <<< "$EXTERNALS"
+
       - name: Validate Marketplace Registry
         run: |
           echo "🔍 Cross-referencing extensions with marketplace.json..."
