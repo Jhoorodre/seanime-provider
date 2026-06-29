@@ -3,14 +3,16 @@ name: Validate Seanime Providers
 on:
   push:
     branches: [master, main]
-    paths: 
+    paths:
       - 'src/**/*.ts'
       - 'src/**/*.json'
+      - 'marketplace.json'
   pull_request:
     branches: [master, main]
     paths:
-      - 'src/**/*.ts' 
+      - 'src/**/*.ts'
       - 'src/**/*.json'
+      - 'marketplace.json'
   workflow_dispatch:
 
 jobs:
