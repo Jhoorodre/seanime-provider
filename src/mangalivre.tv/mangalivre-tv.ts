@@ -10,7 +10,7 @@ class Provider {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "x-toonlivre-client": "web-x",
+        "x-tly-token": "v99-web-z",
         "Referer": "https://toonlivre.net/",
         "Pragma": "no-cache",
         "Cache-Control": "no-cache"
