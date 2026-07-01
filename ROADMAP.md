@@ -16,6 +16,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Online Streaming Providers
 
+- [x] **Anime Yabu** ([`src/animeyabu`](./src/animeyabu))
+
 - [x] **AnimesOnlineCC** ([`src/animesonlinecc`](./src/animesonlinecc))
 - [x] **Dattebayo BR** ([`src/dattebayobr`](./src/dattebayobr))
 - [x] **Goyabu** ([`src/goyabu`](./src/goyabu))
