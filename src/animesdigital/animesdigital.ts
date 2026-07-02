@@ -30,7 +30,8 @@ class Provider {
             
             if (url && title && url.includes("/anime/a/")) {
                 const isDub = title.toLowerCase().includes("dublado");
-
+                if (opts.dub !== isDub) return;
+                
                 results.push({
                     id: url,
                     title: title.replace(/(Assistir | Dublado Online em HD| Legendado Online em HD| Online em HD)/ig, "").trim(),
