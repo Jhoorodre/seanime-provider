@@ -16,6 +16,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Online Streaming Providers
 
+- [x] **Animes Digital** ([`src/animesdigital`](./src/animesdigital))
+
 - [x] **Anime Yabu** ([`src/animeyabu`](./src/animeyabu))
 
 - [x] **AnimesOnlineCC** ([`src/animesonlinecc`](./src/animesonlinecc))
