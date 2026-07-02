@@ -31,7 +31,6 @@ class Provider {
             
             if (url && title && url.includes("/animes/")) {
                 const isDub = title.toLowerCase().includes("dublado");
-                if (opts.dub !== isDub) return;
                 
                 results.push({
                     id: url,
