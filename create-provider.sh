@@ -117,7 +117,7 @@ cat > "src/$SLUG/$SLUG.json" <<EOF
   "name": "$NAME",
   "description": "$DESC",
   "manifestURI": "https://raw.githubusercontent.com/Jhoorodre/seanime-provider/refs/heads/master/src/$SLUG/$SLUG.json",
-  "version": "0.9.9",
+  "version": "0.0.0",
   "author": "$AUTHOR",
   "type": "$TYPE",
   "language": "typescript",
