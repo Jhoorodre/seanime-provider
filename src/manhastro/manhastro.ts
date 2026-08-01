@@ -1,9 +1,5 @@
 /// <reference path="../mangalivre.tv/manga-provider.d.ts" />
 
-// Variáveis globais para cache da lista de todos os mangás (evita bater na API toda hora durante buscas repetidas)
-let globalMangasCache: any[] | null = null;
-let globalMangasCacheTime: number = 0;
-
 class Provider {
     private readonly baseUrl = "https://manhastro.net";
     private readonly apiUrl = "https://api2.manhastro.net";
@@ -31,50 +27,23 @@ class Provider {
         return JSON.parse(cleaned.trim());
     }
 
-    private async fetchAllMangas(): Promise<any[]> {
-        const now = Date.now();
-        // Cache de 30 minutos em memória para buscas mais rápidas
-        if (globalMangasCache && (now - globalMangasCacheTime) < 30 * 60 * 1000) {
-            return globalMangasCache;
-        }
-
-        const res = await fetch(`${this.apiUrl}/dados`, { headers: this.defaultHeaders });
-        if (!res.ok) return [];
-
-        const text = await res.text();
-        try {
-            const json = this.cleanJsonResponse(text);
-            if (json && json.success && Array.isArray(json.data)) {
-                globalMangasCache = json.data;
-                globalMangasCacheTime = now;
-                return json.data;
-            }
-        } catch (e) {
-            console.error("Erro ao parsear dados de todos os mangás:", e);
-        }
-        return [];
-    }
-
-    private normalizeText(text: string): string {
-        if (!text) return "";
-        return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    }
-
     async search(opts: QueryOptions): Promise<SearchResult[]> {
         if (!opts?.query?.trim()) return [];
 
         try {
-            const allMangas = await this.fetchAllMangas();
-            const query = this.normalizeText(opts.query);
+            // /dados suporta filtro server-side via "nome" — o catálogo tem ~29k mangás em
+            // ~292 páginas, então filtrar no cliente só a página 1 deixava a busca praticamente cega.
+            const res = await fetch(`${this.apiUrl}/dados?nome=${encodeURIComponent(opts.query.trim())}`, { headers: this.defaultHeaders });
+            if (!res.ok) return [];
 
-            let filtered = allMangas.filter((manga: any) => {
-                const titulo = this.normalizeText(manga.titulo);
-                const tituloBrasil = this.normalizeText(manga.titulo_brasil);
-                return titulo.includes(query) || tituloBrasil.includes(query);
-            });
+            const text = await res.text();
+            const json = this.cleanJsonResponse(text);
+            if (!json || !json.success || !Array.isArray(json.data)) return [];
+
+            let filtered = json.data;
 
             // Ordena os resultados para priorizar mangás com mais "views" (popularidade) se disponível
-            filtered.sort((a, b) => {
+            filtered.sort((a: any, b: any) => {
                 const viewsA = parseInt(a.views_mes || "0");
                 const viewsB = parseInt(b.views_mes || "0");
                 return viewsB - viewsA;
@@ -133,9 +102,10 @@ class Provider {
                 } as any;
             });
 
-            // Ordena do capítulo mais recente (maior número) para o mais antigo
-            result.sort((a, b) => parseFloat(b.chapter) - parseFloat(a.chapter));
-            
+            // Ordena do capítulo mais antigo para o mais recente (index 0 = capítulo 1),
+            // como exigido pela documentação de providers da Seanime
+            result.sort((a, b) => parseFloat(a.chapter) - parseFloat(b.chapter));
+
             // Re-indexa o array após ordenar para não quebrar a ordem da interface do Seanime
             result.forEach((cap, idx) => cap.index = idx);
 
