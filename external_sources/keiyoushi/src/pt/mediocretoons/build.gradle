@@ -1,9 +1,17 @@
-ext {
-    extName = 'Mediocre Toons'
-    extClass = '.MediocreToons'
-    baseUrl = 'https://mediocrescan.com'
-    extVersionCode = 19
-    isNsfw = true
+import io.github.keiyoushi.gradle.api.ContentWarning
+
+plugins {
+    alias(kei.plugins.extension)
 }
 
-apply plugin: "kei.plugins.extension.legacy"
+keiyoushi {
+    name = "Mediocre Toons"
+    versionCode = 20
+    contentWarning = ContentWarning.NSFW // or MIXED, please confirm
+    libVersion = "1.4"
+
+    source {
+        lang = "pt-BR"
+        baseUrl = "https://mediocrescan.com"
+    }
+}
