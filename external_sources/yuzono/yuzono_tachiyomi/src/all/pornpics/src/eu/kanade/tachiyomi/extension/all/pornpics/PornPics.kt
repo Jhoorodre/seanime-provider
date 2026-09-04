@@ -11,8 +11,9 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.lib.i18n.Intl
+import keiyoushi.utils.asJsoup
 import keiyoushi.utils.firstInstance
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
@@ -21,18 +22,11 @@ import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
 
-class PornPics(
-    override val lang: String,
-) : HttpSource(),
+@Source
+abstract class PornPics :
+    HttpSource(),
     ConfigurableSource {
 
-    override val id get() = when (lang) {
-        "en" -> 1459635082044256286
-        else -> super.id
-    }
-
-    override val baseUrl = "https://www.pornpics.com"
-    override val name = "PornPics"
     override val supportsLatest = true
 
     private val preferences = getPreferences()

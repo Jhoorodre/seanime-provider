@@ -8,8 +8,9 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
+import keiyoushi.utils.asJsoup
 import keiyoushi.utils.parseAs
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -19,13 +20,8 @@ import org.jsoup.Jsoup
 import java.util.Calendar
 import kotlin.time.Duration.Companion.seconds
 
-class MangaLivreBlog : HttpSource() {
-
-    override val name = "Manga Livre Blog"
-
-    override val baseUrl = "https://mangalivre.blog"
-
-    override val lang = "pt-BR"
+@Source
+abstract class MangaLivreBlog : HttpSource() {
 
     override val supportsLatest = true
 

@@ -1,0 +1,18 @@
+import io.github.keiyoushi.gradle.api.ContentWarning
+
+plugins {
+    alias(kei.plugins.extension)
+}
+
+keiyoushi {
+    name = "EveriaClub (unoriginal)"
+    versionCode = 1
+    contentWarning = ContentWarning.NSFW
+    libVersion = "1.4"
+    kmkVersionCode = 1
+
+    source {
+        lang = "all"
+        baseUrl = "https://www.everiaclub.com"
+    }
+}

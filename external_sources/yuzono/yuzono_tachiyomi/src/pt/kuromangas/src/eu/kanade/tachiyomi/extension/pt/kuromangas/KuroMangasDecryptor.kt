@@ -2,59 +2,123 @@ package eu.kanade.tachiyomi.extension.pt.kuromangas
 
 import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.asJsoup
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.readIntBigEndian
 import keiyoushi.utils.readIntLittleEndian
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
+import okhttp3.Headers
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import java.io.IOException
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneOffset
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 const val HOSTNAME_PART = "kuromangas.com::v2"
 const val ANTIBOT = "x9_4v2_b"
-const val DEFAULT_ENC_KEY = "5ato8l674shksfE2oMwajkun9TuYTusF4jKdqEwhUEft9787147pasdssde345h"
+const val DEFAULT_ENC_KEY = "i3ato8l6sai74432xsfE2oMmieshoforanuYTusF4jKdqEwhUEft9dsadcxzde3"
+const val NONCE_HEADER = "X-Session-Nonce"
+const val NONCE_PATH = "/api/auth/nonce"
+private const val HMAC_ALGORITHM = "HmacSHA256"
+private const val BODY_PEEK_BYTES = 512L
+private const val LOGIN_EXPIRED_MESSAGE = "Sessão recusada pelo site. Refaça o login no WebView ou revise email e senha nas configurações."
 
 private val encKeyRegex = Regex("""ENCRYPTION_KEY\s*[:=]\s*["']([^"']+)["']""")
 
-class KuroMangasDecryptor(val baseUrl: String, val client: OkHttpClient) {
-    private var viteApiEncKey: String? = null
-    private var hasErrored: Boolean = false
+class KuroMangasDecryptor(
+    val baseUrl: String,
+    val client: OkHttpClient,
+    val headers: Headers,
+    val relogin: () -> Boolean,
+) {
+    private var viteApiEncKey: String? = DEFAULT_ENC_KEY
+
+    private var sessionSecret: String? = null
 
     fun vSecureInterceptor() = Interceptor { chain ->
-        val req = chain.request()
-        if (viteApiEncKey == null || hasErrored) {
-            val indexJs = client.newCall(GET(baseUrl, req.headers)).execute()
-                .asJsoup()
-                .selectFirst("script[src*=index]")
-                ?.absUrl("src")
 
-            viteApiEncKey = if (indexJs != null) {
-                client.newCall(GET(indexJs, req.headers)).execute()
-                    .body.string()
-                    .let { encKeyRegex.find(it)?.groupValues?.get(1) }
-            } else {
-                null
-            } ?: DEFAULT_ENC_KEY
+        fun newRequest(): Request {
+            val request = chain.request()
+            if (request.url.encodedPath.endsWith(NONCE_PATH)) return request
+
+            val secret = sessionSecret ?: fetchSecret()?.also { sessionSecret = it } ?: return request
+            return request.newBuilder()
+                .header(NONCE_HEADER, signature(secret, request.method, request.url.encodedPath))
+                .build()
         }
 
-        val response = chain.proceed(req)
-        val dataKey = response.headers["x-kuro-datakey"] ?: return@Interceptor response
+        fun execute(request: Request, retried: Boolean): Response {
+            val response = chain.proceed(request)
 
-        val secureDto = response.parseAs<SecureDto>()
-        val decryptedJson = decrypt(secureDto.vSecure, dataKey)
+            if (response.code == 401 || response.code == 403) {
+                val reason = runCatching { response.peekBody(BODY_PEEK_BYTES).string() }.getOrDefault("")
+                response.close()
+                if (retried) throw IOException("$LOGIN_EXPIRED_MESSAGE (${response.code}) $reason")
+                reloadCredentials()
+                return execute(newRequest(), true)
+            }
 
-        response.newBuilder()
-            .body(decryptedJson.toResponseBody(response.body.contentType()))
-            .build()
+            val dataKey = response.headers["x-kuro-datakey"] ?: return response
+
+            val decrypted = runCatching {
+                val dto = response.parseAs<SecureDto>()
+                decrypt(dto.vSecure, dataKey)
+            }.getOrNull()
+
+            if (decrypted == null) {
+                response.close()
+                if (retried) throw IOException("Failed to decrypt")
+                reloadCredentials()
+                return execute(newRequest(), true)
+            }
+            return response.newBuilder()
+                .body(decrypted.toResponseBody(response.body.contentType()))
+                .build()
+        }
+
+        execute(newRequest(), false)
+    }
+
+    /** The site signs every call with `base64url(HMAC-SHA256(secret, "METHOD|path|epoch")).epoch`. */
+    private fun signature(secret: String, method: String, path: String): String {
+        val timestamp = System.currentTimeMillis() / 1000
+        val mac = Mac.getInstance(HMAC_ALGORITHM).apply {
+            init(SecretKeySpec(secret.decodeHex(), HMAC_ALGORITHM))
+        }
+        val digest = mac.doFinal("${method.uppercase()}|$path|$timestamp".toByteArray())
+        val encoded = Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        return "$encoded.$timestamp"
+    }
+
+    private fun fetchSecret(): String? = runCatching {
+        client.newCall(GET(baseUrl + NONCE_PATH, headers)).execute().parseAs<NonceDto>().secret
+    }.getOrNull()
+
+    private fun String.decodeHex(): ByteArray = ByteArray(length / 2) { substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+
+    fun reloadCredentials() {
+        // The secret is only issued to a live session, so a rejected cookie requires a fresh login.
+        sessionSecret = fetchSecret() ?: if (relogin()) fetchSecret() else null
+
+        val indexJsUrl = client.newCall(GET(baseUrl)).execute()
+            .asJsoup()
+            .selectFirst("script[src*=index]")
+            ?.absUrl("src") ?: return
+
+        val js = client.newCall(GET(indexJsUrl)).execute().body.string()
+
+        encKeyRegex.find(js)?.groupValues?.get(1)?.let { viteApiEncKey = it }
     }
 
     // index-*.js: Ik2() + Hk2()
-    fun decrypt(vSecure: String, dataKey: String): String {
+    fun decrypt(vSecure: String, dataKey: String): String? {
         val password = derivePassword()
         val encrypted = Base64.decode(vSecure, Base64.DEFAULT)
         val salt = encrypted.copyOfRange(8, 16)
@@ -71,10 +135,9 @@ class KuroMangasDecryptor(val baseUrl: String, val client: OkHttpClient) {
         val wrapper = try {
             jsonStr.parseAs<JsonElement>()
         } catch (e: Exception) {
-            hasErrored = true
-            error("Decryption failed: ${e.message}")
+            return null
         }
-        val inner = wrapper.jsonObject[dataKey] ?: error("Failed to find dataKey")
+        val inner = wrapper.jsonObject[dataKey] ?: wrapper
         return inner.toString()
     }
 

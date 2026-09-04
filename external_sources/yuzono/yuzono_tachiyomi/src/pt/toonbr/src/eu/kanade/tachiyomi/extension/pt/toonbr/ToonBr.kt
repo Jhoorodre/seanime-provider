@@ -11,7 +11,8 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import keiyoushi.lib.cookieinterceptor.CookieInterceptor
+import keiyoushi.annotation.Source
+import keiyoushi.network.addCookie
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
@@ -22,15 +23,13 @@ import okhttp3.Response
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class ToonBr :
+@Source
+abstract class ToonBr :
     HttpSource(),
     ConfigurableSource {
 
     private val preferences by getPreferencesLazy()
 
-    override val name = "ToonBr"
-    override val baseUrl = "https://beta.toonbr.com"
-    override val lang = "pt-BR"
     override val supportsLatest = true
 
     override val client by lazy {
@@ -38,7 +37,7 @@ class ToonBr :
         network.client.newBuilder()
             .apply {
                 if (token.isNotEmpty()) {
-                    addNetworkInterceptor(CookieInterceptor(API_HOST, "token" to token))
+                    addCookie({ API_HOST }, "token" to token)
                 }
             }
             .rateLimit(2)

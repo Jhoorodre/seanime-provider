@@ -13,10 +13,11 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.lib.cookieinterceptor.CookieInterceptor
+import keiyoushi.annotation.Source
 import keiyoushi.lib.i18n.Intl
+import keiyoushi.network.addCookie
 import keiyoushi.network.rateLimit
+import keiyoushi.utils.asJsoup
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
@@ -34,16 +35,12 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
-class Honeytoon(
-    private val language: Language,
-) : HttpSource(),
+@Source
+abstract class Honeytoon :
+    HttpSource(),
     ConfigurableSource {
 
-    override val name: String = "Honeytoon"
-
-    override val baseUrl: String = "https://honeytoon.com"
-
-    override val lang: String = language.lang
+    private val siteLangPath: String get() = if (lang == "pt-BR") "pt" else lang
 
     override val supportsLatest: Boolean = true
 
@@ -61,12 +58,7 @@ class Honeytoon(
             chain.proceed(chain.request())
         }
         .addInterceptor(ScrambledImageInterceptor())
-        .addNetworkInterceptor(
-            when {
-                isAdultContentEnabled -> CookieInterceptor(baseUrl.substringAfter("//"), "eighteen" to "1")
-                else -> CookieInterceptor(baseUrl.substringAfter("//"), "eighteen" to "0")
-            },
-        )
+        .addCookie { listOf("eighteen" to if (isAdultContentEnabled) "1" else "0") }
         .rateLimit(3, 1.seconds)
         .build()
 
@@ -80,7 +72,7 @@ class Honeytoon(
     // Popular
 
     override fun popularMangaRequest(page: Int): Request {
-        val langPath = if (lang == "en") "" else "/${language.langPath}"
+        val langPath = if (lang == "en") "" else "/$siteLangPath"
         return GET("$baseUrl$langPath/ranking", headers)
     }
 
@@ -108,7 +100,7 @@ class Honeytoon(
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val langPath = if (lang == "en") "" else "/${language.langPath}"
+        val langPath = if (lang == "en") "" else "/$siteLangPath"
         val form = FormBody.Builder()
             .add("query", query)
             .build()
@@ -233,12 +225,12 @@ class Honeytoon(
 
     private val dateFormat: SimpleDateFormat by lazy {
         val locale = when {
-            language.lang.contains("-") -> {
-                val (lang, country) = language.lang.split("-")
+            lang.contains("-") -> {
+                val (lang, country) = lang.split("-")
                 Locale(lang, country)
             }
 
-            else -> Locale(language.lang)
+            else -> Locale(lang)
         }
         SimpleDateFormat("MMMM dd , yyyy", locale)
     }

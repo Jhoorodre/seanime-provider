@@ -1,25 +1,18 @@
 package eu.kanade.tachiyomi.extension.pt.flowermanga
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
+import eu.kanade.tachiyomi.multisrc.madara.MadaraBase.ChapterMode
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import okhttp3.OkHttpClient
-import java.text.SimpleDateFormat
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class FlowerMangaDotNet :
-    Madara(
-        "FlowerManga.net",
-        "https://flowermangas.net",
-        "pt-BR",
-        SimpleDateFormat("d 'de' MMMMM 'de' yyyy", Locale("pt", "BR")),
-    ) {
+@Source
+abstract class FlowerMangaDotNet : Madara() {
+    override val chapterMode = ChapterMode.MangaAjax
+    override val chapterDateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.ROOT)
+    override val chapterDateSelector = ".chapter-release-date .timediff"
 
-    override val id = 2421010180391442293
-
-    override val client: OkHttpClient = super.client.newBuilder()
-        .rateLimit(2)
-        .build()
-
-    override val useLoadMoreRequest = LoadMoreStrategy.Never
-    override val useNewChapterEndpoint = false
+    override fun OkHttpClient.Builder.configureClient() = rateLimit(2) { !it.encodedPath.startsWith("/wp-content/uploads/") }
 }

@@ -1,0 +1,14 @@
+ext {
+    extName = 'BetterAnimeIo'
+    extClass = '.BetterAnimeIo'
+    themePkg = 'dooplay'
+    baseUrl = 'https://betteranime.io'
+    overrideVersionCode = 1
+    isNsfw = false
+}
+
+apply plugin: "kei.plugins.extension.legacy"
+
+dependencies {
+    implementation(project(":lib:bloggerextractor"))
+}

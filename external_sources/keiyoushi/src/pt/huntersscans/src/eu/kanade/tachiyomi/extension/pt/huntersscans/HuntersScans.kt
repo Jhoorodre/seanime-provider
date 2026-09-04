@@ -5,8 +5,9 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
+import keiyoushi.utils.asJsoup
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Response
@@ -18,13 +19,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.time.Duration.Companion.minutes
 
-class HuntersScans :
-    Madara(
-        "Hunters Scan",
-        "https://readhunters.xyz",
-        "pt-BR",
-        SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR")),
-    ) {
+@Source
+abstract class HuntersScans : Madara() {
+    override val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
     override val client = super.client.newBuilder()
         .readTimeout(1.minutes)
         .addInterceptor { chain ->

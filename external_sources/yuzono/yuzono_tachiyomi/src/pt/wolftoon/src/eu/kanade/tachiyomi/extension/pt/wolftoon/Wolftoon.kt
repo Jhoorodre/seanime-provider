@@ -8,7 +8,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import keiyoushi.lib.cookieinterceptor.CookieInterceptor
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.parseAs
 import kotlinx.coroutines.CoroutineScope
@@ -25,22 +25,16 @@ import java.util.Locale
 import java.util.TimeZone
 import kotlin.time.Duration.Companion.seconds
 
-class Wolftoon : HttpSource() {
+@Source
+abstract class Wolftoon : HttpSource() {
     private val baseUrlHost by lazy { baseUrl.toHttpUrl().host }
     private val supabaseUrlHost by lazy { supabaseUrl.toHttpUrl().host }
 
-    override val name = "Wolftoon"
-
-    override val baseUrl = "https://wolftoon.lovable.app"
-
     private val supabaseUrl = "https://encmakrlmutvsdzpodov.supabase.co"
-
-    override val lang = "pt-BR"
 
     override val supportsLatest = true
 
     override val client: OkHttpClient = network.client.newBuilder()
-        .addNetworkInterceptor(CookieInterceptor(supabaseUrlHost, emptyList()))
         .rateLimit(2, 1.seconds) { it.host == baseUrlHost || it.host == supabaseUrlHost }
         .build()
 

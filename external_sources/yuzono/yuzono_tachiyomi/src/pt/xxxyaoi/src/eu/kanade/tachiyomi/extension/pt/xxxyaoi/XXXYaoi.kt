@@ -4,22 +4,21 @@ import eu.kanade.tachiyomi.multisrc.madara.Madara
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.SChapter
+import keiyoushi.annotation.Source
 import keiyoushi.network.rateLimit
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.collections.plusAssign
 import kotlin.time.Duration.Companion.seconds
 
-class XXXYaoi :
-    Madara(
-        "XXX Yaoi",
-        "https://3xyaoi.com",
-        "pt-BR",
-        SimpleDateFormat("dd/MM/yyyy", Locale.ROOT),
-    ) {
+@Source
+abstract class XXXYaoi : Madara() {
+    override val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -42,9 +41,11 @@ class XXXYaoi :
 
     override val mangaSubString = "bl"
 
-    override val mangaDetailsSelectorAuthor = mangaDetailsSelectorArtist
-
-    override val mangaDetailsSelectorStatus = "div.post-content_item:contains(Status) > div.summary-content"
+    override val mangaDetailsSelectorTitle = ".xyaoi-main-title, h1"
+    override val mangaDetailsSelectorAuthor = "a[href*=author]"
+    override val mangaDetailsSelectorArtist = "a[href*=artist]"
+    override val mangaDetailsSelectorStatus = "span[class*=status-value]"
+    override val mangaDetailsSelectorDescription = ".xyaoi-synopsis-content"
 
     override val statusFilterOptions: Map<String, String> =
         mapOf(
@@ -80,6 +81,12 @@ class XXXYaoi :
 
         url.addPathSegments(searchPage(page))
         return GET(url.build(), headers)
+    }
+
+    override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
+        name = element.selectFirst(".xyaoi-chapter-name")!!.text()
+        date_upload = parseChapterDate(element.selectFirst(".xyaoi-chapter-date-line")?.text())
+        setUrlWithoutDomain(element.selectFirst(chapterUrlSelector)!!.absUrl("href"))
     }
 
     override fun getFilterList(): FilterList {

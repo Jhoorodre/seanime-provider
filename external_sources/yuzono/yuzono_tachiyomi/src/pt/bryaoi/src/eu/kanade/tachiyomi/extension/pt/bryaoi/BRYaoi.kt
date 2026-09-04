@@ -7,18 +7,14 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
-import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.annotation.Source
+import keiyoushi.utils.asJsoup
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 
-class BRYaoi : HttpSource() {
-
-    override val name = "BR Yaoi"
-
-    override val baseUrl = "https://bryaoi.com"
-
-    override val lang = "pt-BR"
+@Source
+abstract class BRYaoi : HttpSource() {
 
     override val supportsLatest = false
 
