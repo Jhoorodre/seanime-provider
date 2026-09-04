@@ -16,6 +16,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Online Streaming Providers
 
+- [x] **Animes Tokyo** ([`src/animestokyo`](./src/animestokyo))
+
 - [x] **Top Animes** ([`src/topanimes`](./src/topanimes))
 
 - [x] **Animes Digital** ([`src/animesdigital`](./src/animesdigital))
