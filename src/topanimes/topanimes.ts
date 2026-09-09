@@ -127,7 +127,8 @@ class Provider {
         for (const s of servers) {
             let url = s.url;
             const label = s.label;
-            
+            const nameLower = label.toLowerCase();
+
             // Handle /aviso/ redirects
             if (url.includes("/aviso/")) {
                 try {
@@ -136,12 +137,26 @@ class Provider {
                 } catch(e) {}
             }
 
-            if (url.includes("sk-api.alibabacdn.net") || url.includes("cinedrive.com") || url.includes("cinesky.top")) {
+            // Known third-party hosts with unresolvable/anti-bot-protected embeds
+            // (matches the Kotlin reference's explicit "Unsupported" list) — skip
+            // rather than pushing an unplayable embed URL as a fake video source.
+            if (url.includes("abyssplayer.com") || nameLower.includes("aniplay")) {
+                continue
+            }
+
+            if (nameLower.includes("streamtape")) {
+                await this.extractStreamTape(url, label, result)
+            } else if (nameLower.includes("mixdrop")) {
+                await this.extractMixDrop(url, label, result)
+            } else if (url.includes("alibabacdn.net") || url.includes("cinedrive.com") || url.includes("cinesky.top")) {
                 try {
                     const apiUrl = url + "&mode=api2";
                     const apiReq = await fetch(apiUrl, { headers: { ...this.headers, "Referer": url } });
-                    const json = await apiReq.json();
-                    
+                    const text = await apiReq.text();
+
+                    let json: any = null;
+                    try { json = JSON.parse(text) } catch (e) {}
+
                     if (json && json.status === "success" && json.midias) {
                         for (const m of json.midias) {
                             let rawLabel = m.qualidade ? m.qualidade.toUpperCase() : 'AUTO';
@@ -153,11 +168,25 @@ class Provider {
                             else if (rawLabel.includes('1080')) finalLabel = '1080p';
                             else if (rawLabel.includes('720')) finalLabel = '720p';
                             else finalLabel = label; // Use tab label if quality is generic
-                            
+
                             result.videoSources.push({
                                 url: m.url,
                                 quality: finalLabel,
-                                type: m.url.includes(".m3u8") ? "m3u8" : "mp4"
+                                type: m.url.includes(".m3u8") ? "m3u8" : "mp4",
+                                subtitles: []
+                            });
+                        }
+                    } else {
+                        // mode=api2 can also return an HTML page with a JWPlayer
+                        // `sources: [{"file":"...","label":"1080p"}]` config instead of JSON.
+                        const sourceMatches = [...text.matchAll(/\{"file":"([^"]+)"[^}]*?(?:"label":"([^"]*)")?[^}]*\}/g)];
+                        for (const m of sourceMatches) {
+                            const videoUrl = m[1].replace(/\\\//g, "/");
+                            result.videoSources.push({
+                                url: videoUrl,
+                                quality: m[2] || label,
+                                type: videoUrl.includes(".m3u8") ? "m3u8" : "mp4",
+                                subtitles: []
                             });
                         }
                     }
@@ -167,10 +196,10 @@ class Provider {
                     const fetchUrl = (url.startsWith("http") ? url : this.api + url).replace(/ /g, "%20");
                     const reqHtml = await fetch(fetchUrl, { headers: this.headers });
                     const text = await reqHtml.text();
-                    
+
                     const m = text.match(/(?:file|url|source|src)["']?\s*:\s*["']([^"']+\.(?:m3u8|mp4)[^"']*)["']/i);
                     let finalUrl = "";
-                    
+
                     if (m && m[1]) {
                         finalUrl = m[1];
                     } else {
@@ -181,28 +210,128 @@ class Provider {
                             } catch(e) {}
                         }
                     }
-                    
+
                     if (finalUrl) {
                         result.videoSources.push({
                             url: finalUrl,
                             quality: label,
-                            type: finalUrl.includes(".m3u8") ? "m3u8" : "mp4"
+                            type: finalUrl.includes(".m3u8") ? "m3u8" : "mp4",
+                            subtitles: []
                         });
                     } else if (url.includes(".mp4") && !url.includes("bg.mp4")) {
-                        result.videoSources.push({ url, quality: label, type: "mp4" });
+                        result.videoSources.push({ url, quality: label, type: "mp4", subtitles: [] });
                     } else if (url.includes(".m3u8")) {
-                        result.videoSources.push({ url, quality: label, type: "m3u8" });
+                        result.videoSources.push({ url, quality: label, type: "m3u8", subtitles: [] });
                     }
                 } catch(e) {}
             } else if (url.includes(".mp4") && !url.includes("bg.mp4")) {
-                result.videoSources.push({ url: url, quality: label, type: "mp4" });
+                result.videoSources.push({ url: url, quality: label, type: "mp4", subtitles: [] });
             } else if (url.includes(".m3u8")) {
-                result.videoSources.push({ url: url, quality: label, type: "m3u8" });
+                result.videoSources.push({ url: url, quality: label, type: "m3u8", subtitles: [] });
             } else {
-                result.videoSources.push({ url: url, quality: label, type: "unknown" });
+                // Generic fallback: fetch the embed and look for a JWPlayer-style
+                // `var jw = {"file":"..."}` config, same pattern used across other
+                // providers in this repo instead of blindly assuming the raw
+                // embed URL is directly playable.
+                try {
+                    const embedReq = await fetch(url.startsWith("http") ? url : this.api + url, { headers: { ...this.headers, Referer: episode.url } })
+                    const embedHtml = await embedReq.text()
+                    const jwMatch = embedHtml.match(/var\s+jw\s*=\s*\{["']?file["']?\s*:\s*"([^"]+)"/)
+                    if (jwMatch) {
+                        const videoUrl = jwMatch[1].replace(/\\\//g, "/")
+                        result.videoSources.push({
+                            url: videoUrl,
+                            quality: label,
+                            type: videoUrl.includes(".m3u8") ? "m3u8" : "mp4",
+                            subtitles: []
+                        })
+                    }
+                } catch (e) {
+                    console.error(`Falha ao processar player "${label}"`, e)
+                }
             }
         }
-        
+
         return result;
+    }
+
+    async extractStreamTape(url: string, label: string, result: EpisodeServer) {
+        try {
+            const baseUrl = "https://streamtape.com/e/"
+            let newUrl = url
+            if (!url.startsWith(baseUrl)) {
+                const id = url.split("/")[4]
+                if (!id) return
+                newUrl = baseUrl + id
+            }
+            const req = await fetch(newUrl, { headers: { "User-Agent": this.headers["User-Agent"], Referer: this.api } })
+            const html = await req.text()
+
+            const marker = "document.getElementById('robotlink')"
+            const markerIdx = html.indexOf(marker)
+            if (markerIdx === -1) return
+            const scriptStart = html.indexOf(".innerHTML = '", markerIdx)
+            if (scriptStart === -1) return
+            const afterMarker = html.slice(scriptStart + ".innerHTML = '".length)
+
+            const part1 = afterMarker.split("'")[0]
+            const xcdIdx = afterMarker.indexOf("+ ('xcd")
+            if (xcdIdx === -1) return
+            const part2 = afterMarker.slice(xcdIdx + "+ ('xcd".length).split("'")[0]
+
+            const videoUrl = "https:" + part1 + part2
+            result.videoSources.push({ url: videoUrl, quality: `${label} - StreamTape`, type: "mp4", subtitles: [] })
+        } catch (e) {
+            console.error("Falha ao extrair StreamTape", e)
+        }
+    }
+
+    async extractMixDrop(url: string, label: string, result: EpisodeServer) {
+        try {
+            const req = await fetch(url, { headers: { "User-Agent": this.headers["User-Agent"], Referer: "https://mixdrop.co/" } })
+            const html = await req.text()
+            const $ = LoadDoc(html)
+
+            let mdScript = ""
+            $("script").each((_, el) => {
+                if (mdScript) return
+                const t = el.text() || ""
+                if (t.includes("eval") && t.includes("MDCore")) mdScript = t
+            })
+            if (!mdScript) return
+
+            const unpacked = this.unpackJS(mdScript)
+            const wurlMatch = unpacked.match(/Core\.wurl="([^"]+)"/)
+            if (!wurlMatch) return
+
+            const videoUrl = "https:" + wurlMatch[1]
+            result.videoSources.push({ url: videoUrl, quality: `${label} - MixDrop`, type: "mp4", subtitles: [] })
+        } catch (e) {
+            console.error("Falha ao extrair MixDrop", e)
+        }
+    }
+
+    // Unpacks Dean Edwards' "eval(function(p,a,c,k,e,d)...)" JS packer format.
+    private unpackJS(source: string): string {
+        const match = source.match(/\}\('(.*)',\s*(\d+),\s*(\d+),\s*'(.*)'\.split\('\|'\)/s)
+        if (!match) return source
+
+        let payload = match[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\")
+        const radix = parseInt(match[2], 10)
+        const count = parseInt(match[3], 10)
+        const words = match[4].split("|")
+
+        const toBaseN = (num: number, base: number): string => {
+            const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+            return num < base ? digits[num] : toBaseN(Math.floor(num / base), base) + digits[num % base]
+        }
+
+        for (let i = count - 1; i >= 0; i--) {
+            if (words[i]) {
+                const key = radix <= 36 ? toBaseN(i, radix) : String(i)
+                payload = payload.replace(new RegExp(`\\b${key}\\b`, "g"), words[i])
+            }
+        }
+        return payload
     }
 }
