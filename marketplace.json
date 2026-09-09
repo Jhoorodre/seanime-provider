@@ -144,7 +144,7 @@
     "isDevelopment": false
   },
   {
-    "id": "anitube",
+    "id": "anitube-paldroid",
     "name": "AniTube",
     "description": "AniTube is an online streaming provider for portugese subs.",
     "author": "Pal",
@@ -312,7 +312,7 @@
     "isDevelopment": false
   },
   {
-    "id": "anitube-ptbr",
+    "id": "anitube",
     "name": "Anitube (PT-BR)",
     "description": "Anime streaming provider for Anitube, with subbed and dubbed titles in Brazilian Portuguese. May only work with a Brazil VPN.",
     "author": "Jhoorodr",
@@ -321,7 +321,7 @@
     "type": "onlinestream-provider",
     "language": "typescript",
     "lang": "pt-BR",
-    "isDevelopment": true
+    "isDevelopment": false
   },
   {
     "id": "tomato",

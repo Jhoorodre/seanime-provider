@@ -44,10 +44,6 @@ This document outlines the planned extensions and providers to be implemented, a
   - *Type:* Online Streaming Provider
   - *Status:* In development
 
-- [ ] **Anitube** ([`src/anitube`](./src/anitube))
-  - *Type:* Online Streaming Provider
-  - *Status:* In development
-
 - [ ] **Amigos Share Club** ([`src/amigosshareclub`](./src/amigosshareclub))
   - *Type:* Anime Torrent Provider
   - *Status:* In development (Search filter issues)
