@@ -1289,8 +1289,56 @@ class Provider {
         }
     }
 
-    private async parseRegex(html: string, aURL: string): Promise<AnimeTorrent[]> {
+    // Reads episode numbers straight from the DOM instead of guessing them from
+    // magnet dn= filenames: each div.mctnx div.soraddl block belongs to one
+    // episode per its .sorattl h3 heading (matches the real Kotlin extractor's
+    // structure), so every magnet inside that block gets that exact number
+    // instead of running through the regex heuristics in TorrentParser.getEpIdx.
+    private parseStructured(html: string, aURL: string): AnimeTorrent[] {
         const res: AnimeTorrent[] = [];
+
+        try {
+            const $ = LoadDoc(html);
+
+            $("div.mctnx div.soraddl").each((_: any, block: any) => {
+                const epLabel = block.find(".sorattl h3").text().trim();
+                const epMatch = epLabel.match(/(\d+(?:\.\d+)?)/);
+                if (!epMatch) return;
+                const epIdx = parseFloat(epMatch[1]);
+
+                // New format: quality-grouped tables (current darkmahou.io layout)
+                block.find(".content table tr").each((_: any, row: any) => {
+                    row.find(".slink a").each((_: any, link: any) => {
+                        const mag = link.attr("href");
+                        if (!mag || !isValidMag(mag)) return;
+                        // Name comes from the magnet's own dn= filename (like the
+                        // rest of this file) so resolution/batch/release-group
+                        // extraction stays consistent — only episodeNumber is
+                        // overridden with the DOM-confirmed value.
+                        const name = this.getName(mag, res.length + 1);
+                        res.push(this.makeTorrentObj(name, mag, aURL, TorrentParser.parseRes(name), epLabel, epIdx));
+                    });
+                });
+
+                // Old format: dublado/legendado divs
+                block.find(".soraurl").each((_: any, group: any) => {
+                    group.find(".slink a").each((_: any, link: any) => {
+                        const mag = link.attr("href");
+                        if (!mag || !isValidMag(mag)) return;
+                        const name = this.getName(mag, res.length + 1);
+                        res.push(this.makeTorrentObj(name, mag, aURL, TorrentParser.parseRes(name), epLabel, epIdx));
+                    });
+                });
+            });
+        } catch (err) {
+            console.log("Error in structured (DOM) parsing: " + (err as any).message);
+        }
+
+        return res;
+    }
+
+    private async parseRegex(html: string, aURL: string): Promise<AnimeTorrent[]> {
+        const res: AnimeTorrent[] = this.parseStructured(html, aURL);
 
         try {
             // console.log("Using optimized regex to find magnet links...");
@@ -1454,16 +1502,20 @@ class Provider {
     }
 
     private makeTorrentObj(
-        name: string, 
-        mag: string, 
-        aURL: string, 
-        res: string, 
-        epLabel: string
+        name: string,
+        mag: string,
+        aURL: string,
+        res: string,
+        epLabel: string,
+        epIdxOverride?: number
     ): AnimeTorrent {
         const hash = TorrentParser.extractInfoHash(mag);
         const pRes = TorrentParser.parseRes(name) || res;
         const batch = TorrentParser.checkIsBatch(name, epLabel);
-        const epIdx = TorrentParser.getEpIdx(name, epLabel);
+        // A DOM-confirmed episode number is only trusted when the block isn't
+        // itself a batch release (e.g. an h3 like "Episódios 1-12" would
+        // otherwise match "1" as a false single-episode number).
+        const epIdx = (epIdxOverride !== undefined && !batch) ? epIdxOverride : TorrentParser.getEpIdx(name, epLabel);
         const group = TorrentParser.extractReleaseGroup(name);
         
         return {
