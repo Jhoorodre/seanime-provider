@@ -16,6 +16,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 ## Online Streaming Providers
 
+- [x] **Anitube (PT-BR)** ([`src/anitube`](./src/anitube))
+
 - [x] **Animes Tokyo** ([`src/animestokyo`](./src/animestokyo))
 
 - [x] **Top Animes** ([`src/topanimes`](./src/topanimes))
@@ -37,6 +39,14 @@ This document outlines the planned extensions and providers to be implemented, a
 ---
 
 ## In Development / Planned
+
+- [ ] **Tomato** ([`src/tomato`](./src/tomato))
+  - *Type:* Online Streaming Provider
+  - *Status:* In development
+
+- [ ] **Anitube** ([`src/anitube`](./src/anitube))
+  - *Type:* Online Streaming Provider
+  - *Status:* In development
 
 - [ ] **Amigos Share Club** ([`src/amigosshareclub`](./src/amigosshareclub))
   - *Type:* Anime Torrent Provider
