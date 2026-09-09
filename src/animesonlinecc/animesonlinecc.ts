@@ -100,9 +100,16 @@ class Provider {
             videoSources: []
         }
 
-        const iframe = $("#playex iframe").attr("src")
-        if (iframe && iframe.includes("blogger.com")) {
-            await this.extractBlogger(iframe, result)
+        const iframeSrcs: string[] = []
+        $("#playex iframe").each((_, el) => {
+            const src = el.attr("src")
+            if (src) iframeSrcs.push(src)
+        })
+
+        for (const src of iframeSrcs) {
+            if (src.includes("blogger.com")) {
+                await this.extractBlogger(src, result)
+            }
         }
 
         return result
