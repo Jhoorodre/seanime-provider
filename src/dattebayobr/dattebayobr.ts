@@ -67,7 +67,7 @@ class Provider {
             const $ = LoadDoc(html);
 
             const pageEpisodes = $("div.ultimosEpisodiosHomeItem");
-            if (pageEpisodes.length() === 0) break;
+            if (pageEpisodes.length === 0) break;
 
             let addedAny = false;
 
@@ -137,7 +137,7 @@ class Provider {
 
         const activeAbas = $("div.AbasBox div.Aba")
         
-        for (let i = 0; i < activeAbas.length(); i++) {
+        for (let i = 0; i < activeAbas.length; i++) {
             const aba = activeAbas.eq(i);
             const abaType = aba.attr("aba-type");
             const qualityName = aba.text() || "HD";
@@ -145,7 +145,7 @@ class Provider {
             if (!abaType) continue;
 
             const container = $(`#${abaType}`);
-            if (!container || container.length() === 0) continue;
+            if (!container || container.length === 0) continue;
 
             const scriptData = container.find("script").text() || "";
             const vidMatch = scriptData.match(/var vid\s*=\s*['"](.*?)['"]/);
@@ -177,6 +177,7 @@ class Provider {
                                 url: urlFinal,
                                 quality: qualityName,
                                 type: "mp4",
+                                subtitles: [],
                                 headers: adHeaders
                             });
                         }
