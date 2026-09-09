@@ -43,7 +43,11 @@ bin/
 obj/
 
 # Project specifics
-test/
+test/*
+!test/playground-sim.ts
+!test/package.json
+!test/bun.lock
+!test/anilist-ids.json
 test_*.js
 tmp*
 gits.txt
