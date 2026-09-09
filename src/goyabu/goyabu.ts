@@ -53,8 +53,18 @@ class Provider {
         const req = await fetch(`${this.api}${id}`, {
             headers: this.headers
         })
-        const html = await req.text()
-        
+        let html = await req.text()
+
+        // Some anime pages only show a navigation menu with a link to the page
+        // that actually lists all episodes (const allEpisodes lives there instead).
+        const $nav = LoadDoc(html)
+        const listaHref = $nav(".episode-navigation a:has(span.lista)").attr("href")
+        if (listaHref) {
+            const listaUrl = listaHref.startsWith("http") ? listaHref : `${this.api}${listaHref.startsWith("/") ? "" : "/"}${listaHref}`
+            const listaReq = await fetch(listaUrl, { headers: this.headers })
+            html = await listaReq.text()
+        }
+
         // Find const allEpisodes = ...;
         const scriptMatch = html.match(/const allEpisodes\s*=\s*(\[.*?\]);/s);
         if (!scriptMatch) {
@@ -232,9 +242,6 @@ class Provider {
                     });
                 }
             }
-
-            // Filter to only keep 1080p and 720p as requested
-            result.videoSources = result.videoSources.filter(v => v.quality === "1080p" || v.quality === "720p");
 
             const qualityMap: Record<string, number> = {
                 "1080p": 1080,
