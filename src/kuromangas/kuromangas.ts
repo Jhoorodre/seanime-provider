@@ -4,17 +4,16 @@ class Provider {
     private baseUrl = "https://kuromangas.com"
     private apiUrl = "https://kuromangas.com/api"
     private cdnUrl = "https://cdn.kuromangas.com"
-    
-    // Constants for Decryption
-    private VITE_API_ENC_KEY = "2i3ato8l674shksfE2oMmieshonuYTusF4jKdqEwhUEft9dsadcxzde3"
+
+    // Constants for Decryption. The real key is served dynamically inside the
+    // site's index-*.js bundle (ENCRYPTION_KEY = "..."); this default is only
+    // a fallback for when that fetch fails.
+    private DEFAULT_ENC_KEY = "i67ato8l6sai74jyIHfE2oMmieshoforanuYTusF4jKdqEwhUEft9dsadcxzsaipnjm8"
     private HOSTNAME_PART = "kuromangas.com::v2"
     private ANTIBOT = "x9_4v2_b"
 
-    // Proteção CSRF é double-submit-cookie puro (servidor só compara Cookie vs header, sem estado
-    // guardado). O valor real vem no Set-Cookie "kuro_x" do login, mas o Seanime só repassa o
-    // primeiro Set-Cookie de respostas com múltiplos, então o segundo nunca chega ao JS. Como o
-    // servidor aceita qualquer valor desde que Cookie e header sejam iguais, usamos uma constante fixa.
-    private readonly csrfValue = "seanime-kuromangas-provider"
+    private cachedEncKey: string | null = null
+    private cachedSession: { sessionCookie: string; clientToken: string } | null = null
 
     getSettings(): Settings {
         return {
@@ -55,7 +54,47 @@ class Provider {
         return await res.json();
     }
 
-    private async getToken(): Promise<string> {
+    private getHeader(res: any, name: string): string {
+        if (!res?.headers) return "";
+        if (typeof res.headers.get === 'function') return res.headers.get(name) || "";
+        const lower = name.toLowerCase();
+        for (const key in res.headers) {
+            if (key.toLowerCase() === lower) {
+                const val = res.headers[key];
+                return Array.isArray(val) ? val.join(";") : val;
+            }
+        }
+        return "";
+    }
+
+    // The site rotates its encryption key; it's exposed inside the homepage's
+    // index-*.js bundle rather than hardcoded, so fetch it once and fall back
+    // to DEFAULT_ENC_KEY if that ever fails.
+    private async getEncKey(): Promise<string> {
+        if (this.cachedEncKey) return this.cachedEncKey;
+
+        try {
+            const homeRes = await fetch(this.baseUrl);
+            const homeHtml = await homeRes.text();
+            const scriptMatch = homeHtml.match(/<script[^>]+src=["']([^"']*index[^"']*)["']/i);
+            if (!scriptMatch) return this.DEFAULT_ENC_KEY;
+
+            const scriptUrl = scriptMatch[1].startsWith("http") ? scriptMatch[1] : `${this.baseUrl}${scriptMatch[1].startsWith("/") ? "" : "/"}${scriptMatch[1]}`;
+            const jsRes = await fetch(scriptUrl);
+            const js = await jsRes.text();
+            const keyMatch = js.match(/ENCRYPTION_KEY\s*[:=]\s*["']([^"']+)["']/);
+
+            this.cachedEncKey = keyMatch ? keyMatch[1] : this.DEFAULT_ENC_KEY;
+        } catch {
+            this.cachedEncKey = this.DEFAULT_ENC_KEY;
+        }
+
+        return this.cachedEncKey;
+    }
+
+    private async login(): Promise<{ sessionCookie: string; clientToken: string }> {
+        if (this.cachedSession) return this.cachedSession;
+
         // userConfig fields are injected via {{email}} and {{password}}
         const email = "{{email}}";
         const password = "{{password}}";
@@ -64,10 +103,8 @@ class Provider {
             throw "E-mail e senha são obrigatórios nas configurações do provedor.";
         }
 
-        const payload = JSON.stringify({ email, password });
-
         try {
-            const res = await fetch(`https://kuromangas.com/api/auth/login`, {
+            const res = await fetch(`${this.apiUrl}/auth/login`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json, text/plain, */*",
@@ -76,7 +113,7 @@ class Provider {
                     "Referer": `${this.baseUrl}/catalogo`,
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 },
-                body: payload
+                body: JSON.stringify({ email, password, rememberMe: true })
             });
 
             if (!res.ok) {
@@ -84,42 +121,29 @@ class Provider {
                 throw `HTTP Error ${res.status}: ${text}`;
             }
 
-            let setCookieStr = "";
-            if (res.headers) {
-                if (typeof res.headers.get === 'function') {
-                    setCookieStr = res.headers.get("set-cookie") || res.headers.get("Set-Cookie") || "";
-                } else {
-                    for (const key in res.headers as any) {
-                        if (key.toLowerCase() === "set-cookie") {
-                            const val = (res.headers as any)[key];
-                            setCookieStr = Array.isArray(val) ? val.join(";") : val;
-                            break;
-                        }
-                    }
-                }
+            const setCookieStr = this.getHeader(res, "set-cookie");
+            const sessionMatch = setCookieStr.match(/kuro_session=([^;]+)/);
+            const clientTokenMatch = setCookieStr.match(/_kn=([^;]+)/);
+
+            if (!sessionMatch?.[1] || !clientTokenMatch?.[1]) {
+                throw "Cookies kuro_session/_kn não extraídos: " + setCookieStr;
             }
 
-            const match = setCookieStr.match(/kuro_session=([^;]+)/);
-            if (!match || !match[1]) {
-                throw "Token kuro_session não extraído do cookie: " + setCookieStr;
-            }
-
-            return match[1];
+            this.cachedSession = { sessionCookie: sessionMatch[1], clientToken: clientTokenMatch[1] };
+            return this.cachedSession;
         } catch (e: any) {
-            throw "getToken error: " + e.toString();
+            throw "login error: " + e.toString();
         }
     }
 
     private async fetchApi(url: string): Promise<any> {
         try {
-            const session = await this.getToken();
+            const session = await this.login();
 
             return await this.requestAPI(url, {
                 headers: {
-                    // Proteção CSRF é double-submit-cookie puro: o servidor só compara este Cookie
-                    // com o header X-Kuro-Verify, sem checar contra um valor emitido por ele (ver csrfValue acima).
-                    "Cookie": `kuro_session=${session}; kuro_x=${this.csrfValue}`,
-                    "X-Kuro-Verify": this.csrfValue,
+                    "Cookie": `kuro_session=${session.sessionCookie}; _kn=${session.clientToken}`,
+                    "X-Client-Token": session.clientToken,
                     "Accept": "application/json, text/plain, */*",
                     "Referer": `${this.baseUrl}/catalogo`,
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -130,19 +154,20 @@ class Provider {
         }
     }
 
-    private derivePassword(): string {
+    private async derivePassword(): Promise<string> {
+        const encKey = await this.getEncKey();
         const date = new Date().toISOString().split("T")[0]; // yyyy-mm-dd (UTC)
         const toHash = `${date}${this.HOSTNAME_PART}${this.ANTIBOT}`;
-        
+
         const hashBytes = md5(toHash);
         const md5Hash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
         const md5Part = md5Hash.substring(0, 8);
-        return this.VITE_API_ENC_KEY + md5Part;
+        return encKey + md5Part;
     }
 
-    private decryptResponse(vSecureBase64: string, dataKey: string): any {
+    private async decryptResponse(vSecureBase64: string, dataKey: string): Promise<any> {
         try {
-            const password = this.derivePassword();
+            const password = await this.derivePassword();
             const encryptedBytes = decodeBase64(vSecureBase64);
             
             // Skip "Salted__" (8 bytes)
