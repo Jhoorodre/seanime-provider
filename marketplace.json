@@ -333,6 +333,6 @@
     "type": "onlinestream-provider",
     "language": "typescript",
     "lang": "pt-BR",
-    "isDevelopment": true
+    "isDevelopment": false
   }
 ]
