@@ -82,6 +82,10 @@ class Provider {
                 title = el.text();
                 if (title) title = title.trim();
             }
+            // The site nests a "NOVO" (new-chapter) badge span inside the title
+            // span, which .text() concatenates without a separator (e.g.
+            // "Capítulo 215NOVO") — strip it since it's just a UI badge.
+            title = title.replace(/NOVO\s*$/i, "").trim();
             if (!title) {
                 title = "Capítulo";
             }
