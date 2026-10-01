@@ -1,7 +1,8 @@
 ext {
     extName = 'YFantasy'
     extClass = '.YFantasy'
-    extVersionCode = 1
+    libVersion = 16
+    extVersionCode = 2
     isNsfw = true
 }
 

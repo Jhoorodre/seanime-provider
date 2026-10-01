@@ -15,38 +15,66 @@ import keiyoushi.utils.parseAs
 import keiyoushi.utils.string
 import keiyoushi.utils.toJsonElement
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
+import okhttp3.CacheControl
+import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody.Companion.toResponseBody
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 @Source
 abstract class OneReader : KeiSource() {
 
     override fun OkHttpClient.Builder.configureClient(): OkHttpClient.Builder = apply {
         rateLimit(3)
+        addInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            val body = response.body
+            val contentType = body.contentType()?.toString().orEmpty()
+            if (!response.isSuccessful || !contentType.startsWith("application/octet-stream")) {
+                return@addInterceptor response
+            }
+            val encrypted = body.bytes()
+            val magic = encrypted.copyOfRange(0, minOf(4, encrypted.size))
+            val isOrx3 = magic.contentEquals(ORX3_MAGIC)
+            val isOrx4 = magic.contentEquals(ORX4_MAGIC)
+            if (!isOrx3 && !isOrx4) return@addInterceptor response.newBuilder().body(encrypted.toResponseBody(body.contentType())).build()
+
+            val grant = mediaGrants[chain.request().url]
+            if (grant == null) {
+                throw IOException("Autorização da mídia OneReader não encontrada")
+            }
+            val decrypted = if (isOrx3) {
+                Orx3Decoder.decode(encrypted, grant.key)
+            } else {
+                Orx4Decoder.decode(encrypted, grant.keyBytes ?: throw IOException("Chave ORX4 ausente"), chain.request().url.queryParameter("or_n").orEmpty())
+            }
+            response.newBuilder().removeHeader("Content-Length").removeHeader("Content-Encoding").header("Content-Type", grant.contentType)
+                .body(decrypted.toResponseBody(grant.contentType.toMediaType())).build()
+        }
     }
 
-    private val apiBaseUrl = "https://api.onereader.net".toHttpUrl()
+    private val apiBaseUrl = baseUrl.toHttpUrl()
 
-    override suspend fun getPopularManga(page: Int): MangasPage = search(
-        page = page,
-        query = "",
-        order = "az",
-        genre = "",
-        type = "",
-        status = "",
-    )
+    override suspend fun getPopularManga(page: Int): MangasPage = client.get(apiUrl("api", "reader", "home"))
+        .parseAs<HomeDto>().toPopularPage()
 
     override suspend fun getLatestUpdates(page: Int): MangasPage {
-        val url = apiUrl("api", "mangas", "home").newBuilder()
-            .addQueryParameter("limit", HOME_LIMIT.toString())
+        val url = apiUrl("api", "reader", "home", "updates").newBuilder()
+            .addQueryParameter("page", page.toString())
+            .addQueryParameter("limit", PAGE_SIZE.toString())
+            .addQueryParameter("filter", "all")
             .build()
 
-        val mangas = client.get(url).parseAs<List<HomeMangaDto>>().map(HomeMangaDto::toSManga)
-
-        return MangasPage(mangas, hasNextPage = false)
+        return client.get(url).parseAs<UpdatesDto>().toMangasPage()
     }
 
     override suspend fun getSearchMangaList(page: Int, query: String, filters: FilterList): MangasPage {
@@ -66,18 +94,17 @@ abstract class OneReader : KeiSource() {
         type: String,
         status: String,
     ): MangasPage {
-        val url = apiUrl("api", "mangas", "search").newBuilder()
+        val url = apiUrl("api", "reader", "catalog", "page").newBuilder()
             .addQueryParameter("page", page.toString())
             .addQueryParameter("limit", PAGE_SIZE.toString())
-            .addQueryParameter("order", order)
-            .addQueryParameter("role", "standard")
-            .addQueryParameter("search", query.trim())
-            .addQueryParameter("genre", genre)
-            .addQueryParameter("type", type)
-            .addQueryParameter("status", status)
+            .addQueryParameter("sort", if (order == "recent") "DATE" else "AZ")
+            .addQueryParameter("q", query.trim())
+            .apply { if (type.isNotBlank()) addQueryParameter("format", type) }
+            .apply { if (status.isNotBlank()) addQueryParameter("status", status) }
+            .apply { if (genre.isNotBlank()) addQueryParameter("genre", genre) }
             .build()
 
-        return client.get(url).parseAs<SearchDto>().toMangasPage()
+        return client.get(url).parseAs<CatalogDto>().toMangasPage()
     }
 
     override suspend fun getMangaByUrl(url: HttpUrl): SManga? {
@@ -91,7 +118,7 @@ abstract class OneReader : KeiSource() {
             .apply { initialized = true }
     }
 
-    override fun getMangaUrl(manga: SManga): String = "$baseUrl/manga-details".toHttpUrl().newBuilder()
+    override fun getMangaUrl(manga: SManga): String = "$baseUrl/obra".toHttpUrl().newBuilder()
         .addQueryParameter("id", manga.url)
         .build()
         .toString()
@@ -104,7 +131,8 @@ abstract class OneReader : KeiSource() {
     ): SMangaUpdate = coroutineScope {
         val updatedManga = if (fetchDetails) {
             async {
-                client.get(apiUrl("api", "mangas", manga.url)).parseAs<MangaDto>().toSManga(details = true)
+                client.get(apiUrl("api", "reader", "works", manga.url))
+                    .parseAs<WorkDetailsDto>().work.toSManga(details = true)
             }
         } else {
             null
@@ -112,11 +140,10 @@ abstract class OneReader : KeiSource() {
 
         val updatedChapters = if (fetchChapters) {
             async {
-                client.get(apiUrl("api", "chapters", manga.url))
-                    .parseAs<Map<String, ChapterDto>>()
-                    .entries
-                    .sortedByDescending { it.key.toDoubleOrNull() ?: Double.NEGATIVE_INFINITY }
-                    .map { it.value.toSChapter(it.key) }
+                client.get(apiUrl("api", "reader", "works", manga.url))
+                    .parseAs<WorkDetailsDto>().chapters
+                    .sortedByDescending { it.number }
+                    .map { it.toSChapter(manga.url) }
             }
         } else {
             null
@@ -129,8 +156,7 @@ abstract class OneReader : KeiSource() {
     }
 
     override fun getChapterUrl(chapter: SChapter): String {
-        val mangaKey = chapter.memo["id"]!!.string
-        val number = chapter.memo["number"]!!.string
+        val (mangaKey, number) = chapterIdentity(chapter)
 
         return "$baseUrl/leitor".toHttpUrl().newBuilder()
             .addQueryParameter("id", mangaKey)
@@ -139,24 +165,247 @@ abstract class OneReader : KeiSource() {
             .toString()
     }
 
-    override suspend fun getPageList(chapter: SChapter): List<Page> {
-        val mangaKey = chapter.memo["id"]?.string ?: throw Exception("Atualize a lista de capítulos")
-        val chapterNumber = chapter.memo["number"]!!.string.replace('.', '_')
+    override suspend fun getPageList(chapter: SChapter): List<Page> = coroutineScope {
+        val (mangaKey, chapterNumber) = chapterIdentity(chapter)
+        val secureTransport = SecureReaderTransport.create()
+        val readerHeaders = headers.newBuilder()
+            .set("Accept", "application/json")
+            .set("X-OneReader-Client-Key", secureTransport.clientKey)
+            .set("X-OneReader-Key-Transport", KEY_TRANSPORT)
+            .build()
+        val manifestUrl = apiUrl("api", "reader", "works", mangaKey, "chapters", chapterNumber)
+        val initialManifest = fetchInitialManifest(manifestUrl, readerHeaders, secureTransport)
 
-        return client.get(apiUrl("api", "chapters", mangaKey, chapterNumber))
-            .parseAs<PagesDto>()
-            .toPages(apiBaseUrl)
+        val pageUrls = (initialManifest.chapter?.pages ?: emptyList()).map { path ->
+            requireNotNull(baseUrl.toHttpUrl().resolve(path)).toString()
+        }.toMutableList()
+
+        if (pageUrls.isEmpty()) return@coroutineScope emptyList()
+
+        val results = arrayOfNulls<Page>(pageUrls.size)
+        var currentIndex = 0
+
+        while (currentIndex < pageUrls.size) {
+            val windowLimit = extractWindowLimit(pageUrls[currentIndex]) ?: pageUrls.size
+            val windowEnd = minOf(windowLimit, pageUrls.size).coerceAtLeast(currentIndex + 1)
+
+            val batchIndices = currentIndex until windowEnd
+            val batchResults = batchIndices.map { index ->
+                async {
+                    val pageUrl = pageUrls[index]
+                    val grant = authorizeMedia(pageUrl, readerHeaders, secureTransport)
+                    Page(index, "", grant.url)
+                }
+            }.awaitAll()
+
+            for ((i, page) in batchResults.withIndex()) {
+                results[currentIndex + i] = page
+            }
+
+            currentIndex = windowEnd
+
+            if (currentIndex < pageUrls.size) {
+                val nextPageNumber = currentIndex + 1
+                val prevGrant = pageUrls[currentIndex - 1].toHttpUrl().queryParameter("g").orEmpty()
+                val refreshedManifest = advanceWindow(
+                    manifestUrl,
+                    prevGrant,
+                    nextPageNumber,
+                    readerHeaders,
+                    secureTransport,
+                )
+                val newPages = refreshedManifest.chapter?.pages?.map { path ->
+                    requireNotNull(baseUrl.toHttpUrl().resolve(path)).toString()
+                } ?: emptyList()
+                if (newPages.size == pageUrls.size) {
+                    for (k in currentIndex until pageUrls.size) {
+                        pageUrls[k] = newPages[k]
+                    }
+                }
+            }
+        }
+
+        results.filterNotNull()
+    }
+
+    private suspend fun fetchInitialManifest(
+        manifestUrl: HttpUrl,
+        readerHeaders: Headers,
+        secureTransport: SecureReaderTransport,
+    ): PagesDto {
+        var lastError: Exception? = null
+        for (attempt in 0 until MAX_ADVANCE_ATTEMPTS) {
+            val response = client.get(
+                manifestUrl,
+                readerHeaders,
+                cacheControl = CacheControl.FORCE_NETWORK,
+                ensureSuccess = false,
+            )
+            if (response.isSuccessful) {
+                val manifest = response.parseAs<PagesDto>()
+                response.close()
+                secureTransport.configure(manifest.protection?.transport)
+                return manifest
+            }
+
+            val statusCode = response.code
+            val bodyString = response.body.string()
+            val retryAfterHeader = response.header("Retry-After")?.toLongOrNull()
+            response.close()
+
+            val isRateLimited = statusCode == 429 && bodyString.contains("READER_RATE_LIMITED")
+            if (isRateLimited && attempt < MAX_ADVANCE_ATTEMPTS - 1) {
+                val baseWaitMs = if (retryAfterHeader != null) {
+                    retryAfterHeader * 1000L
+                } else {
+                    (DEFAULT_RETRY_AFTER_SECONDS + attempt * 2L) * 1000L
+                }
+                val jitter = Random.nextLong(100L, 500L)
+                delay(baseWaitMs + jitter)
+                continue
+            }
+
+            val detail = bodyString.replace(Regex("[\\r\\n\\t]+"), " ").take(MAX_ERROR_BODY_LENGTH)
+            lastError = IOException("Falha ao obter manifesto do capítulo: HTTP $statusCode: $detail")
+            break
+        }
+
+        throw lastError ?: IOException("Não foi possível obter o manifesto inicial do capítulo")
+    }
+
+    private suspend fun advanceWindow(
+        manifestUrl: HttpUrl,
+        previousGrant: String,
+        nextPageNumber: Int,
+        readerHeaders: Headers,
+        secureTransport: SecureReaderTransport,
+    ): PagesDto {
+        val refreshUrl = manifestUrl.newBuilder()
+            .addQueryParameter("_or_pg", previousGrant)
+            .addQueryParameter("_or_page", nextPageNumber.toString())
+            .build()
+
+        var lastError: Exception? = null
+        for (attempt in 0 until MAX_ADVANCE_ATTEMPTS) {
+            val response = client.get(
+                refreshUrl,
+                readerHeaders,
+                cacheControl = CacheControl.FORCE_NETWORK,
+                ensureSuccess = false,
+            )
+            if (response.isSuccessful) {
+                val refreshed = response.parseAs<PagesDto>()
+                response.close()
+                secureTransport.configure(refreshed.protection?.transport)
+                return refreshed
+            }
+
+            val statusCode = response.code
+            val bodyString = response.body.string()
+            val retryAfterHeader = response.header("Retry-After")?.toLongOrNull()
+            response.close()
+
+            val isWindowWait = statusCode == 429 && bodyString.contains("READER_PAGE_WINDOW_WAIT")
+            val isRateLimited = statusCode == 429 && bodyString.contains("READER_RATE_LIMITED")
+
+            if (isWindowWait && attempt < MAX_ADVANCE_ATTEMPTS - 1) {
+                val waitSeconds = retryAfterHeader ?: DEFAULT_RETRY_AFTER_SECONDS
+                delay(maxOf(750L, waitSeconds * 1000L))
+                continue
+            }
+
+            if (isRateLimited && attempt < MAX_ADVANCE_ATTEMPTS - 1) {
+                val baseWaitMs = if (retryAfterHeader != null) {
+                    retryAfterHeader * 1000L
+                } else {
+                    (DEFAULT_RETRY_AFTER_SECONDS + attempt * 2L) * 1000L
+                }
+                val jitter = Random.nextLong(100L, 500L)
+                delay(baseWaitMs + jitter)
+                continue
+            }
+
+            val detail = bodyString.replace(Regex("[\\r\\n\\t]+"), " ").take(MAX_ERROR_BODY_LENGTH)
+            lastError = IOException("Falha ao avançar janela de páginas: HTTP $statusCode: $detail")
+            break
+        }
+
+        throw lastError ?: IOException("Não foi possível liberar a próxima faixa de páginas")
+    }
+
+    private suspend fun authorizeMedia(
+        pageUrl: String,
+        readerHeaders: Headers,
+        secureTransport: SecureReaderTransport,
+    ): MediaGrant {
+        val httpUrl = pageUrl.toHttpUrl()
+        val proofHeaders = secureTransport.buildProofHeaders(httpUrl)
+        val requestHeaders = readerHeaders.newBuilder()
+            .set("Accept", "application/vnd.onereader.media+json")
+            .apply {
+                proofHeaders.forEach { (name, value) -> set(name, value) }
+            }
+            .build()
+
+        var lastError: Exception? = null
+        for (attempt in 0 until 3) {
+            val response = client.get(
+                httpUrl,
+                requestHeaders,
+                cacheControl = CacheControl.FORCE_NETWORK,
+                ensureSuccess = false,
+            )
+            if (response.isSuccessful) {
+                val grant = response.parseAs<MediaGrantDto>()
+                response.close()
+                if (!grant.ok || grant.mode !in SUPPORTED_MEDIA_MODES) {
+                    throw IOException("Autorização de mídia inválida")
+                }
+                val keyBytes = grant.keyWrap?.let(secureTransport::unwrap)
+                if (grant.mode == MODE_AES_GCM_V4 && keyBytes == null) {
+                    throw IOException("Chave ORX4 ausente")
+                }
+                if (grant.mode == MODE_XOR_PREFIX_V3 && grant.key.isBlank()) {
+                    throw IOException("Chave ORX3 ausente")
+                }
+                val mediaGrant = MediaGrant(grant.url, grant.key, keyBytes, grant.contentType)
+                mediaGrants[grant.url.toHttpUrl()] = mediaGrant
+                return mediaGrant
+            }
+
+            val code = response.code
+            val body = response.body.string()
+            val retryAfterHeader = response.header("Retry-After")?.toLongOrNull()
+            response.close()
+
+            val isRateLimited = code == 429 && body.contains("READER_RATE_LIMITED")
+            if (isRateLimited && attempt < 2) {
+                val baseWaitMs = if (retryAfterHeader != null) {
+                    retryAfterHeader * 1000L
+                } else {
+                    (DEFAULT_RETRY_AFTER_SECONDS + attempt * 2L) * 1000L
+                }
+                val jitter = Random.nextLong(100L, 500L)
+                delay(baseWaitMs + jitter)
+                continue
+            }
+
+            val detail = body.replace(Regex("[\\r\\n\\t]+"), " ").take(MAX_ERROR_BODY_LENGTH)
+            lastError = IOException("Falha ao autorizar mídia: HTTP $code: $detail")
+            break
+        }
+
+        throw lastError ?: IOException("Falha ao autorizar mídia da página")
     }
 
     override val supportsFilterFetching get() = true
 
     override suspend fun fetchFilterData(): JsonElement = coroutineScope {
-        val tags = async { client.get(apiUrl("api", "tags")).parseAs<List<String>>() }
-        val types = async { client.get(apiUrl("api", "types")).parseAs<List<String>>() }
+        val meta = async { client.get(apiUrl("api", "reader", "catalog", "meta")).parseAs<MetaDto>() }
 
         FilterData(
-            tags = tags.await().filter(String::isNotBlank),
-            types = types.await().filter(String::isNotBlank),
+            tags = meta.await().genres.values.flatten().map { it.name }.filter(String::isNotBlank).distinct(),
+            types = listOf("Manga", "Manhwa", "Manhua", "Webtoon"),
         ).toJsonElement()
     }
 
@@ -182,5 +431,35 @@ abstract class OneReader : KeiSource() {
     companion object {
         private const val PAGE_SIZE = 24
         private const val HOME_LIMIT = 60
+        private const val MAX_ERROR_BODY_LENGTH = 500
+        private const val MAX_ADVANCE_ATTEMPTS = 4
+        private const val DEFAULT_RETRY_AFTER_SECONDS = 3L
+        private const val KEY_TRANSPORT = "ecdh-p256-aesgcm-v1"
+        private const val MODE_XOR_PREFIX_V3 = "xor-prefix-v3"
+        private const val MODE_AES_GCM_V4 = "aes-gcm-v4"
+        private val SUPPORTED_MEDIA_MODES = setOf(MODE_XOR_PREFIX_V3, MODE_AES_GCM_V4)
+        private val ORX3_MAGIC = byteArrayOf(0x4f, 0x52, 0x58, 0x33)
+        private val ORX4_MAGIC = byteArrayOf(0x4f, 0x52, 0x58, 0x34)
+        private val mediaGrants = ConcurrentHashMap<HttpUrl, MediaGrant>()
     }
+}
+
+private data class MediaGrant(val url: String, val key: String, val keyBytes: ByteArray?, val contentType: String)
+
+private fun chapterIdentity(chapter: SChapter): Pair<String, String> = resolveChapterIdentity(
+    chapter.url,
+    chapter.memo["id"]?.string,
+    chapter.memo["number"]?.string,
+)
+
+internal fun resolveChapterIdentity(chapterUrl: String, memoMangaKey: String?, memoChapterNumber: String?): Pair<String, String> {
+    // Some hosts persist only the standard chapter URL and omit extension memo.
+    val fallbackMangaKey = chapterUrl.substringBeforeLast('/', "")
+    val fallbackNumber = chapterUrl.substringAfterLast('/', "")
+    val mangaKey = memoMangaKey?.takeIf(String::isNotBlank) ?: fallbackMangaKey
+    val chapterNumber = memoChapterNumber?.takeIf(String::isNotBlank) ?: fallbackNumber
+    if (mangaKey.isBlank() || chapterNumber.isBlank()) {
+        throw IOException("Capítulo OneReader sem identificador; atualize a lista de capítulos")
+    }
+    return mangaKey to chapterNumber
 }

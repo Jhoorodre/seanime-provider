@@ -1,6 +1,10 @@
 package eu.kanade.tachiyomi.animeextension.pt.animefire
 
+import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
@@ -13,12 +17,13 @@ import eu.kanade.tachiyomi.animeextension.pt.animefire.extractors.AnimeFireExtra
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
+import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
-import keiyoushi.utils.AnimeHttpLegacySource
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
@@ -30,23 +35,28 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Response
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 
 class AnimeFire :
-    AnimeHttpLegacySource(),
+    AnimeHttpSource(),
     ConfigurableAnimeSource {
     override val name = "Anime Fire"
-    override val baseUrl = "https://animefire.io"
+    override val baseUrl = "https://animefire.one"
     override val lang = "pt-BR"
     override val supportsLatest = true
-    private val api = "https://api.animefire.io"
+    private val api = "https://api.animefire.one"
     private val preferences by getPreferencesLazy()
     private val extractor by lazy { AnimeFireExtractor(client) }
 
     @Volatile private var genres = emptyList<String>()
+
+    private val animePosterCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/").set("Origin", baseUrl)
@@ -54,6 +64,7 @@ class AnimeFire :
     override fun popularAnimeRequest(page: Int) = GET("$api/home", headers)
     override fun popularAnimeParse(response: Response): AnimesPage {
         val cards = response.parseAs<AFResponse<Home>>().data.carousels.first { it.key == "most-liked" }.items
+        cards.forEach { card -> card.poster?.let { animePosterCache[card.id] = it } }
         return AnimesPage(cards.map(::toAnime), false).also { debug("popular=${cards.size}") }
     }
 
@@ -62,14 +73,54 @@ class AnimeFire :
     override suspend fun getLatestUpdates(page: Int): AnimesPage = coroutineScope {
         if (page > 1) return@coroutineScope AnimesPage(emptyList(), false)
         val home = client.newCall(latestUpdatesRequest(page)).awaitSuccess().parseAs<AFResponse<Home>>().data
-        val episodes = home.carousels.first { it.key == "new-episodes" }.items.distinctBy { it.id }
+
+        val homeCanonicalPosters = mutableMapOf<String, String>()
+        home.carousels.filterNot { it.key == "new-episodes" }.forEach { carousel ->
+            carousel.items.forEach { card ->
+                card.poster?.let {
+                    homeCanonicalPosters[card.id] = it
+                    animePosterCache[card.id] = it
+                }
+            }
+        }
+
+        val rawEpisodes = home.carousels.firstOrNull { it.key == "new-episodes" }?.items ?: emptyList()
+        val distinctEpisodes = rawEpisodes.distinctBy { ep ->
+            ep.titles["BR"] ?: ep.titles.values.firstOrNull() ?: ep.id
+        }
+
         val gate = Semaphore(4)
-        val cards = episodes.map { episode ->
+        val cards = distinctEpisodes.map { episode ->
             async {
                 gate.withPermit {
                     try {
-                        client.newCall(GET("$api/episode/${episode.id}", headers)).awaitSuccess()
-                            .parseAs<AFResponse<EpisodeDetails>>().data.anime
+                        val epDetails = client.newCall(GET("$api/episode/${episode.id}", headers)).awaitSuccess()
+                            .parseAs<AFResponse<EpisodeDetails>>().data
+                        val animeCard = epDetails.anime
+                        val animeId = animeCard.id
+
+                        val knownPoster = animePosterCache[animeId] ?: homeCanonicalPosters[animeId]
+                        val posterUrl = if (!knownPoster.isNullOrBlank()) {
+                            knownPoster
+                        } else if (!animeCard.poster.isNullOrBlank() && !isEpisodeFrame(animeCard.poster, episode)) {
+                            animeCard.poster
+                        } else {
+                            try {
+                                client.newCall(GET("$api/anime/$animeId", headers)).awaitSuccess()
+                                    .parseAs<AFResponse<AnimeDetails>>().data.hero.poster
+                            } catch (e: Exception) {
+                                null
+                            } ?: animeCard.poster ?: episode.poster
+                        }
+                        if (!posterUrl.isNullOrBlank()) {
+                            animePosterCache[animeId] = posterUrl
+                        }
+
+                        Card(
+                            id = animeId,
+                            titles = animeCard.titles.ifEmpty { episode.titles },
+                            poster = posterUrl,
+                        )
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -79,8 +130,16 @@ class AnimeFire :
                 }
             }
         }.awaitAll().filterNotNull().distinctBy { it.id }
-        check(cards.isNotEmpty() || episodes.isEmpty()) { "Não foi possível carregar os animes dos novos episódios." }
-        AnimesPage(cards.map(::toAnime), false).also { debug("latest episodes=${episodes.size} anime=${cards.size}") }
+
+        check(cards.isNotEmpty() || rawEpisodes.isEmpty()) { "Não foi possível carregar os animes dos novos episódios." }
+        AnimesPage(cards.map(::toAnime), false).also { debug("latest raw=${rawEpisodes.size} distinctEps=${distinctEpisodes.size} anime=${cards.size}") }
+    }
+
+    private fun isEpisodeFrame(url: String, episode: Card): Boolean {
+        if (episode.still != null && url == episode.still) return true
+        if (episode.thumbnail != null && url == episode.thumbnail) return true
+        if (url.contains("/still/", ignoreCase = true) || url.contains("/stills/", ignoreCase = true)) return true
+        return false
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): okhttp3.Request {
@@ -104,13 +163,15 @@ class AnimeFire :
     override fun searchAnimeParse(response: Response): AnimesPage {
         val result = response.parseAs<AFResponse<List<Card>>>()
         result.meta?.genres?.takeIf { it.isNotEmpty() }?.let { genres = it }
+        result.data.forEach { card -> card.poster?.let { animePosterCache[card.id] = it } }
         return AnimesPage(result.data.distinctBy { it.id }.map(::toAnime), result.meta?.let { it.currentPage < it.lastPage } ?: false)
             .also { debug("search=${it.animes.size} next=${it.hasNextPage}") }
     }
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
+        val queryId = animeIdFromQuery(query)
         val id = when {
             query.startsWith(PREFIX_SEARCH) -> query.removePrefix(PREFIX_SEARCH)
-            query.startsWith("$baseUrl/anime/") -> query.toHttpUrl().pathSegments.last()
+            queryId != null -> queryId
             else -> return super.getSearchAnime(page, query, filters)
         }
         require(id.matches(Regex("[A-Za-z0-9_-]+"))) { "Identificador inválido" }
@@ -118,18 +179,26 @@ class AnimeFire :
     }
     private fun toAnime(card: Card) = SAnime.create().apply {
         url = "/anime/${card.id}"
-        title = card.title
+        title = card.titles["BR"] ?: card.titles.values.firstOrNull() ?: card.id
         thumbnail_url = card.poster
     }
-    private fun animeId(anime: SAnime): String {
-        val path = (if (anime.url.startsWith("http")) anime.url else "$baseUrl${anime.url}").toHttpUrl().pathSegments
-        require(path.size == 2 && path.first() == "anime") { "Endereço da versão antiga. Localize esta obra pela busca e migre para o novo cadastro." }
+    private fun animeId(anime: SAnime) = animeIdFromUrl(anime.url.toHttpUrlOrNull() ?: "$baseUrl${anime.url}".toHttpUrl())
+    private fun animeIdFromUrl(url: okhttp3.HttpUrl): String {
+        require(url.host in supportedHosts) { "Endereço de anime não suportado" }
+        val path = url.pathSegments.filter(String::isNotEmpty)
+        require(path.size == 2 && path.first() == "anime" && path.last().matches(idPattern)) { "Identificador inválido" }
         return path.last()
+    }
+    private fun animeIdFromQuery(query: String): String? {
+        val url = query.toHttpUrlOrNull() ?: return null
+        val path = url.pathSegments.filter(String::isNotEmpty)
+        return if (url.host in supportedHosts && path.size == 2 && path.first() == "anime" && path.last().matches(idPattern)) animeIdFromUrl(url) else null
     }
     override fun animeDetailsRequest(anime: SAnime) = GET("$api/anime/${animeId(anime)}", headers)
     override fun animeDetailsParse(response: Response): SAnime {
         val details = response.parseAs<AFResponse<AnimeDetails>>().data
         val hero = details.hero
+        hero.poster?.let { animePosterCache[hero.id] = it }
         return SAnime.create().apply {
             url = "/anime/${hero.id}"
             title = hero.titles["BR"] ?: hero.titles.values.first()
@@ -166,13 +235,93 @@ class AnimeFire :
             }
         }.also { debug("episodes=${it.size}") }
     }
-    override fun videoListRequest(episode: SEpisode) = GET("$api${episode.url}", headers)
-    override fun videoListParse(response: Response): List<Video> = extractor.videos(response.parseAs<AFResponse<EpisodeDetails>>().data.streams, headers).sortVideos()
-    override fun videoUrlParse(response: Response): String = error("Use videoListParse")
+    override fun seasonListParse(response: Response): List<SAnime> = emptyList()
+    override fun hosterListRequest(episode: SEpisode) = GET("$api/episode/${episodeId(episode)}", headers)
+    override fun hosterListParse(response: Response): List<Hoster> {
+        val details = response.parseAs<AFResponse<EpisodeDetails>>().data
+        val activeStreams = details.streams.filterNot { it.offline }
+        if (activeStreams.isEmpty()) {
+            val msg = "Anime Fire: este episódio não possui servidores de vídeo disponíveis no momento."
+            notifyUser(msg)
+            throw Exception(msg)
+        }
+        return activeStreams.mapIndexed { index, stream ->
+            val audioLabel = when (stream.audio?.lowercase()) {
+                "dublado" -> "Dublado"
+                "legendado" -> "Legendado"
+                null -> "Padrão"
+                else -> stream.audio.replaceFirstChar { it.uppercase() }
+            } + if (stream.machineTranslated) " (MTL)" else ""
+            Hoster(
+                hosterName = "Anime Fire ($audioLabel)",
+                hosterUrl = "$api/episode/${details.id}",
+                internalData = "${details.id}|$index|${stream.audio.orEmpty()}",
+            )
+        }
+    }
 
-    override fun List<Video>.sortVideos(): List<Video> {
+    override fun videoListRequest(hoster: Hoster): okhttp3.Request {
+        val internalParts = hoster.internalData.split('|')
+        val episodeId = internalParts.getOrNull(0)?.takeIf { it.isNotBlank() }
+            ?: hoster.hosterUrl.substringAfterLast('/')
+        return GET("$api/episode/$episodeId", headers)
+    }
+
+    override fun videoListParse(response: Response, hoster: Hoster): List<Video> {
+        val details = response.parseAs<AFResponse<EpisodeDetails>>().data
+        val internalParts = hoster.internalData.split('|')
+        val streamIndex = internalParts.getOrNull(1)?.toIntOrNull()
+        val expectedAudio = internalParts.getOrNull(2)
+
+        val activeStreams = details.streams.filterNot { it.offline }
+        if (activeStreams.isEmpty()) {
+            val msg = "Anime Fire: este episódio não possui vídeos ativos no servidor."
+            notifyUser(msg)
+            throw Exception(msg)
+        }
+
+        val targetStream = (if (streamIndex != null) activeStreams.getOrNull(streamIndex) else null)
+            ?: activeStreams.firstOrNull { it.audio.equals(expectedAudio, ignoreCase = true) }
+            ?: activeStreams.first()
+
+        val videos = extractor.videos(listOf(targetStream), headers).sort()
+        if (videos.isEmpty()) {
+            val audioLabel = when (targetStream.audio?.lowercase()) {
+                "dublado" -> "Dublado"
+                "legendado" -> "Legendado"
+                else -> targetStream.audio.orEmpty()
+            }
+            val targetName = if (audioLabel.isNotBlank()) " ($audioLabel)" else ""
+            val message = "Anime Fire: o vídeo deste episódio$targetName foi removido ou está indisponível no servidor (404 Not Found)."
+            notifyUser(message)
+            throw Exception(message)
+        }
+        return videos
+    }
+
+    override suspend fun getVideoList(hoster: Hoster): List<Video> {
+        val response = client.newCall(videoListRequest(hoster)).awaitSuccess()
+        return videoListParse(response, hoster)
+    }
+
+    private fun notifyUser(message: String) {
+        try {
+            val app = Injekt.get<Application>()
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(app, message, Toast.LENGTH_LONG).show()
+            }
+        } catch (_: Exception) {
+            // Ignore in environments where Injekt/Application is not initialized
+        }
+    }
+
+    private fun List<Video>.sort(): List<Video> {
         val preferred = preferences.getString("quality_selection", "best")
-        return sortedWith(compareByDescending<Video> { preferred != "best" && resolution(it.videoTitle) == resolution(preferred.orEmpty()) }.thenByDescending { resolution(it.videoTitle) })
+        return sortedWith(
+            compareByDescending<Video> { it.videoTitle.contains("H.264", ignoreCase = true) }
+                .thenByDescending { preferred != "best" && resolution(it.videoTitle) == resolution(preferred.orEmpty()) }
+                .thenByDescending { resolution(it.videoTitle) },
+        )
     }
     private fun resolution(label: String) = Regex("(\\d+)p").find(label)?.groupValues?.get(1)?.toIntOrNull() ?: 0
     override fun getFilterList() = AFFilters.list(genres)
@@ -189,8 +338,18 @@ class AnimeFire :
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
     companion object {
         const val PREFIX_SEARCH = "id:"
+        private val supportedHosts = setOf("animefire.one", "animefire.io", "animefire.plus")
+        private val idPattern = Regex("[A-Za-z0-9_-]+")
         fun debug(message: String) {
             if (BuildConfig.DEBUG) Log.d("ANIMEFIRE_DEBUG", message)
         }
+    }
+
+    private fun episodeId(episode: SEpisode): String {
+        val url = episode.url.toHttpUrlOrNull() ?: "$baseUrl${episode.url}".toHttpUrl()
+        require(url.host in supportedHosts) { "Endereço de episódio não suportado" }
+        val path = url.pathSegments.filter(String::isNotEmpty)
+        require(path.size == 2 && path.first() == "episode" && path.last().matches(idPattern)) { "Identificador inválido" }
+        return path.last()
     }
 }
