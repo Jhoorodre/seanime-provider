@@ -240,9 +240,31 @@ class Provider {
     }
 
     async findChapters(id: string): Promise<ChapterDetails[]> {
-        const response = await this.fetchApi(`${this.apiUrl}/mangas/${id}`);
-        // response has { manga: {...}, chapters: [...] }
-        const chaptersList = response?.chapters ? response.chapters : (Array.isArray(response) ? response : []);
+        // Chapter listing moved to its own paginated endpoint: the manga
+        // details response's embedded "chapters" field now silently truncates
+        // at 60 items, dropping the newest chapters on any long-running manga.
+        const chaptersList: any[] = [];
+        const seenIds = new Set<number>();
+        let page = 1;
+        while (page <= 1000) {
+            const res = await this.fetchApi(`${this.apiUrl}/mangas/${id}/chapters?page=${page}&limit=60&order=desc`);
+            const pageChapters = res?.chapters || [];
+            if (pageChapters.length === 0) break;
+
+            let addedAny = false;
+            for (const ch of pageChapters) {
+                if (!seenIds.has(ch.id)) {
+                    seenIds.add(ch.id);
+                    chaptersList.push(ch);
+                    addedAny = true;
+                }
+            }
+            if (!addedAny) break;
+
+            const totalPages = res?.pagination?.totalPages;
+            if (totalPages ? page >= totalPages : pageChapters.length < 60) break;
+            page++;
+        }
 
         const chapters: ChapterDetails[] = chaptersList.map((ch: any) => {
             const chNum = ch.chapter_number?.toString() || ch.number?.toString() || "";
