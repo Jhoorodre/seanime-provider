@@ -91,8 +91,8 @@ class Provider {
         }
         
         // Seanime expects episodes in ascending order
-        // The original array is already ascending, so we return it as is.
-        return results
+        // The original array is already ascending; only decimals are dropped (Seanime's EpisodeDetails.number is an int: one x.5 episode makes the whole list fail to unmarshal, per doc)
+        return results.filter((e) => Number.isInteger(e.number))
     }
 
     async findEpisodeServer(episode: EpisodeDetails | any, _server: string): Promise<EpisodeServer> {
