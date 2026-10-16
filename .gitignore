@@ -44,11 +44,11 @@ obj/
 
 # Project specifics
 test/*
-!test/playground-sim.ts
-!test/package.json
-!test/bun.lock
-!test/anilist-ids.json
+playground/node_modules
+playground/.env
 test_*.js
 tmp*
 gits.txt
 pedido.txt
+.playwright-mcp
+playground/.env
