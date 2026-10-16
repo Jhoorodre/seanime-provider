@@ -32,6 +32,8 @@ Beyond this repository, the community maintains an unofficial marketplace with a
 - `src/` - Contains the source code (`.ts`) and manifests (`.json`) for all locally developed extensions.
 - `icon/` - PNG images (icons) used by the extensions in the Marketplace.
 - `doc/` - Official Seanime API documentation to help with the development of new providers.
+- `playground/` - Client that runs the providers through Seanime's real Playground (plus a local simulator and the AniList IDs used by the tests).
+- `external_sources/` - Read-only snapshots (`src/all` and `src/pt`) of third-party Tachiyomi/Aniyomi extension repos, used only as reference for site logic.
 - `.github/workflows/` - CI/CD Automations (Testing, Validation, and Deployment).
 - `marketplace.json` - The global extension registry. Every extension present in `src/` **must** be registered here, alongside external community providers.
 
@@ -73,6 +75,37 @@ To make development easier, this repository includes local scripts to automate r
    # Example: ./bump.sh darkmahou patch
    ```
 
+3. **Test Providers in Seanime's real Playground (`./playground/run.sh`)**
+   Sends each provider's code to the **real Playground endpoint** of your running Seanime server
+   (`POST /api/v1/extensions/playground/run`), so the engine (goja), `fetch`, `LoadDoc`, AniList data
+   and best-match selection are exactly what `Extensions > Playground` produces. It reads the server
+   port and password from `~/.config/Seanime/config.toml` (or `SEANIME_URL` / `SEANIME_PASSWORD`),
+   runs the whole chain per provider (search → episodes/chapters → server/pages, or the torrent
+   methods) and prints, for every function, the `Inputs`, `Logs` and `Value` the Playground returned,
+   followed by a one-line-per-provider summary. Requires [bun](https://bun.sh) and a running Seanime.
+   ```bash
+   ./playground/run.sh anime                        # every anime provider (onlinestream + torrent)
+   ./playground/run.sh manga --anilist-id 105398    # every manga provider with one AniList ID
+   ./playground/run.sh animestokyo                  # one provider, AniList ID from playground/anilist-ids.json
+   ./playground/run.sh animestokyo goyabu --full    # print whole Values (default: first 40 lines)
+   ./playground/run.sh goyabu --anilist-id 180136 --method search --args '{"dub":false}'   # a single function
+   ./playground/run.sh anime --jobs 2 --timeout 180 # 4 providers at a time and 120 s per call by default
+   ./playground/run.sh --sim anitube                # older local simulator, no Seanime server needed
+   ```
+   Results per provider: `OK`; `FAIL` (a function threw, a list came back empty — `findEpisodes`,
+   `findChapters` or `findChapterPages` must return everything — or the search itself failed, e.g.
+   timeout/502); `NO_MATCH` (the search worked but nothing matches the AniList titles: the site lacks the
+   title, or the provider doesn't expose the site's alternative names as `synonyms`); `SKIP` (no AniList ID
+   or missing credentials). Exits 1 only on `FAIL`.
+
+   Each provider needs a known-good AniList ID in `playground/anilist-ids.json` (a title you've confirmed
+   exists on that site). An entry can also be `{"anilist": N, "siteId": "..."}` to pin the provider's own ID
+   and skip the auto-match.
+
+   Login-gated providers (kuromangas, mediocrescan, sakuramangas, tomato) are skipped unless
+   `TEST_<SLUG>_<FIELD>` env vars (e.g. `TEST_KUROMANGAS_EMAIL`) are set, for instance in `playground/.env`
+   — field names come from the provider's manifest `userConfig.fields`.
+
 ---
 
 ## 📖 Developer Documentation
@@ -84,6 +117,13 @@ If you are developing new extensions or improving existing ones, refer to the of
 - [Online Streaming Provider API](./doc/Online%20Streaming%20Provider.md)
 - [Custom Source API](./doc/Custom%20Source.md)
 - [Write, test, share](./doc/Write,%20test,%20share.md)
+
+Things the Seanime runtime does that differ from Node/browser (all verified in the real Playground):
+
+- No `setTimeout`/`setInterval`: wait with `await $sleep(ms)`.
+- `fetch` responses keep only the first value of each header; all cookies are in `res.cookies` and all raw headers in `res.rawHeaders`. There is no `res.clone()` and no `.catch()` on promises.
+- An episode `number` must be an integer: a single `7.5` episode makes the whole `findEpisodes` call fail, so drop decimals.
+- Seanime calls `search` once per title/synonym of the media, back to back — space the requests out if the site rate-limits (HTTP 429).
 
 ---
 
