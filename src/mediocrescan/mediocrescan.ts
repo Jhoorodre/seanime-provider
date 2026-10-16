@@ -5,6 +5,7 @@ let globalCachedToken: string | null = null;
 let globalLoginPromise: Promise<string> | null = null;
 // O backend já alternou de domínio antes (back -> back2) e pode voltar a qualquer momento;
 // cacheia globalmente qual host respondeu por último para não testar os dois em toda chamada.
+let lastApiCall = 0
 let globalApiHost: string | null = null;
 
 class Provider {
@@ -31,21 +32,33 @@ class Provider {
 
     // Tenta o host cacheado (ou back, depois back2). Um 5xx ou falha de rede pula pro próximo host;
     // qualquer outra resposta (200, 401, 404...) confirma que o host está no ar e vira o cache.
+    // The site rate-limits (HTTP 429) and the reference extension allows 2 requests/second, while Seanime
+    // fires one search per title back to back: space the calls out and retry a 429 after waiting.
     private async apiFetch(path: string, opts?: any): Promise<Response> {
         const cached = globalApiHost
         const hosts = cached ? [cached, ...this.apiHosts.filter(h => h !== cached)] : this.apiHosts
         let lastError: any = null
         for (const host of hosts) {
-            try {
-                const res = await fetch(`${host}${path}`, opts)
-                if (res.status >= 500) {
-                    lastError = new Error(`${host} respondeu ${res.status}`)
-                    continue
+            for (let attempt = 0; attempt < 4; attempt++) {
+                const wait = lastApiCall + 500 - Date.now()
+                if (wait > 0) await $sleep(wait)
+                lastApiCall = Date.now()
+                try {
+                    const res = await fetch(`${host}${path}`, opts)
+                    if (res.status === 429 && attempt < 3) {
+                        await $sleep(1500 * (attempt + 1))
+                        continue
+                    }
+                    if (res.status >= 500) {
+                        lastError = new Error(`${host} respondeu ${res.status}`)
+                        break
+                    }
+                    globalApiHost = host
+                    return res
+                } catch (e) {
+                    lastError = e
+                    break
                 }
-                globalApiHost = host
-                return res
-            } catch (e) {
-                lastError = e
             }
         }
         throw lastError || new Error("Todos os hosts da API do MediocreScan falharam")
@@ -126,7 +139,8 @@ class Provider {
         try {
             const token = await this.authenticate();
             // A rota de pesquisa exata fornecida pelo network tab: /obras/buscar?string=...
-            const searchPath = `/obras/buscar?string=${encodeURIComponent(opts.query)}&limite=24&pagina=1`;
+            // temCapitulo/formato as in the reference extension: without them the API also returns works with no chapters (empty page lists)
+            const searchPath = `/obras/buscar?string=${encodeURIComponent(opts.query)}&limite=24&pagina=1&temCapitulo=true&formato=1,4,5,8,9,13`;
             console.log("URL de busca:", `${this.currentApiHost()}${searchPath}`);
 
             const response = await this.apiFetch(searchPath, {
@@ -232,19 +246,19 @@ class Provider {
                 headers: { ...this.defaultHeaders, "Authorization": token }
             });
 
-            if (!apiResponse.ok) return [];
+            if (!apiResponse.ok) throw `HTTP ${apiResponse.status} ao buscar o capítulo ${cId}`;
             
             const apiData = await apiResponse.json();
             const capUuid = apiData.cap_uuid;
             const capNum = apiData.cap_num;
 
-            if (!capUuid) return [];
+            if (!capUuid) throw `Capítulo ${cId} sem cap_uuid na API`;
 
             // 2. Com o UUID em mãos, buscar o arquivo JSON de páginas no CDN
             const cdnJsonUrl = `https://cdn.mediocrescan.com/obras/${mId}/capitulos/${capNum}/${capUuid}.json`;
             const cdnResponse = await fetch(cdnJsonUrl);
             
-            if (!cdnResponse.ok) return [];
+            if (!cdnResponse.ok) throw `HTTP ${cdnResponse.status} ao buscar as páginas no CDN`;
             
             const paginas = await cdnResponse.json();
             
@@ -256,7 +270,7 @@ class Provider {
 
         } catch (error) {
             console.error("findChapterPages failed:", error);
-            return [];
+            throw error;
         }
     }
 }
