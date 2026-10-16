@@ -121,15 +121,21 @@ class Provider {
                 throw `HTTP Error ${res.status}: ${text}`;
             }
 
-            const setCookieStr = this.getHeader(res, "set-cookie");
-            const sessionMatch = setCookieStr.match(/kuro_session=([^;]+)/);
-            const clientTokenMatch = setCookieStr.match(/_kn=([^;]+)/);
+            // The login sends two Set-Cookie headers (kuro_session and _kn). Seanime's fetch only keeps the
+            // first one in res.headers, but exposes every cookie in res.cookies (and all raw headers in
+            // res.rawHeaders), so read those first and fall back to the flattened header.
+            const cookies: Record<string, string> = (res as any).cookies || {};
+            const raw = (res as any).rawHeaders?.["Set-Cookie"];
+            const setCookieStr = (Array.isArray(raw) ? raw.join(";") : "") || this.getHeader(res, "set-cookie");
+            const session = cookies["kuro_session"] || setCookieStr.match(/kuro_session=([^;]+)/)?.[1];
+            const clientToken = cookies["_kn"] || setCookieStr.match(/_kn=([^;]+)/)?.[1];
 
-            if (!sessionMatch?.[1] || !clientTokenMatch?.[1]) {
-                throw "Cookies kuro_session/_kn não extraídos: " + setCookieStr;
+            if (!session || !clientToken) {
+                // names only: the values are credentials
+                throw "Cookies kuro_session/_kn não extraídos (recebidos: " + Object.keys(cookies).join(",") + ")";
             }
 
-            this.cachedSession = { sessionCookie: sessionMatch[1], clientToken: clientTokenMatch[1] };
+            this.cachedSession = { sessionCookie: session, clientToken: clientToken };
             return this.cachedSession;
         } catch (e: any) {
             throw "login error: " + e.toString();
@@ -267,7 +273,9 @@ class Provider {
         }
 
         const chapters: ChapterDetails[] = chaptersList.map((ch: any) => {
-            const chNum = ch.chapter_number?.toString() || ch.number?.toString() || "";
+            // The API sends "1.00"; show it like the reference extension does ("1", "1.5")
+            const rawNum = ch.chapter_number?.toString() || ch.number?.toString() || "";
+            const chNum = isNaN(parseFloat(rawNum)) ? rawNum : String(parseFloat(rawNum));
             let title = ch.title || ch.name;
             if (!title) {
                 title = `Capítulo ${chNum}`;
