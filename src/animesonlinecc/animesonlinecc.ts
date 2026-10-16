@@ -74,7 +74,8 @@ class Provider {
         // Ensure episodes are sorted ascending
         results.sort((a, b) => a.number - b.number)
         
-        return results
+        // Seanime's EpisodeDetails.number is an int: one x.5 episode makes the whole list fail to unmarshal, so drop decimals (per doc)
+        return results.filter((e) => Number.isInteger(e.number))
     }
 
     async findEpisodeServer(episode: EpisodeDetails | any, _server: string): Promise<EpisodeServer> {
