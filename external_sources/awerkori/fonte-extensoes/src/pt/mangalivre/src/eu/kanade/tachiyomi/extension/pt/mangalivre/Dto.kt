@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.pt.mangalivre
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import keiyoushi.utils.toJsonString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
@@ -38,26 +39,24 @@ class MangaDto(
     fun toSManga(useAlternativeTitle: Boolean) = SManga.create().apply {
         this.title = if (useAlternativeTitle && !alternativeTitle.isNullOrBlank()) alternativeTitle else this@MangaDto.title
         this.thumbnail_url = this@MangaDto.thumbnailUrl
-        this.description =
-            buildString {
-                if (!this@MangaDto.description.isNullOrBlank()) {
-                    append(this@MangaDto.description)
-                }
-
-                if (!alternativeTitle.isNullOrBlank()) {
-                    appendLine("${"\n".repeat(3)} Nome alternativo: $alternativeTitle")
-                }
+        this.description = buildString {
+            if (!this@MangaDto.description.isNullOrBlank()) {
+                append(this@MangaDto.description)
             }
+
+            if (!alternativeTitle.isNullOrBlank()) {
+                appendLine("${"\n".repeat(3)} Nome alternativo: $alternativeTitle")
+            }
+        }
         author = authors?.joinToString()
         artist = artists?.joinToString()
         genre = genres?.joinToString()
         this@MangaDto.status?.let {
-            status =
-                when (it.lowercase()) {
-                    "ongoing" -> SManga.ONGOING
-                    "completed" -> SManga.COMPLETED
-                    else -> SManga.UNKNOWN
-                }
+            status = when (it.lowercase()) {
+                "ongoing" -> SManga.ONGOING
+                "completed" -> SManga.COMPLETED
+                else -> SManga.UNKNOWN
+            }
         }
         this.url = id
     }
@@ -65,12 +64,9 @@ class MangaDto(
     fun toSChapterList(): List<SChapter> = chapters?.map { it.toSChapter(getSlug(), id) } ?: emptyList()
 
     private fun getSlug(): String {
-        val noDiacritics =
-            Normalizer
-                .normalize(title, Normalizer.Form.NFD)
-                .replace(MARKS_REGEX, "")
-        return noDiacritics
-            .lowercase()
+        val noDiacritics = Normalizer.normalize(title, Normalizer.Form.NFD)
+            .replace(MARKS_REGEX, "")
+        return noDiacritics.lowercase()
             .replace(NON_ALPHA_REGEX, "-")
             .trim('-')
     }
@@ -85,21 +81,53 @@ class MangaDto(
 class ChapterReferenceDto(
     val mangaId: String,
     val chapterId: String,
+    val pageCount: Int? = null,
 )
 
 @Serializable
 class ReaderAccessResponseDto(
-    val chapter: ReaderChapterDto,
+    val chapter: ReaderChapterDto? = null,
+    val protectedPages: Boolean? = null,
+    val firstHandle: HandleDto? = null,
+    val grant: GrantDto? = null,
+    val pageCount: Int? = null,
 )
 
 @Serializable
 class ReaderChapterDto(
-    val pages: List<String>,
+    val pages: List<String> = emptyList(),
+    val id: String? = null,
+    val number: String? = null,
+    val pageCount: Int? = null,
+    val mangaId: String? = null,
+)
+
+@Serializable
+class HandleDto(
+    val token: String,
+    val pageNumber: Int? = null,
+    val pageCount: Int? = null,
+)
+
+@Serializable
+class GrantDto(
+    val token: String,
+    val expiresAt: Long? = null,
+)
+
+@Serializable
+class PageResponseDto(
+    val imageUrl: String? = null,
+    val directImage: Boolean? = null,
+    val pageNumber: Int? = null,
+    val pageCount: Int? = null,
+    val nextHandle: HandleDto? = null,
 )
 
 @Serializable
 class ReaderAccessErrorDto(
-    val error: String,
+    val error: String? = null,
+    val requiresTurnstile: Boolean? = null,
 )
 
 @Serializable
@@ -107,17 +135,19 @@ class ChapterDto(
     val id: String,
     val number: String,
     val timestamp: Long,
+    val pageCount: Int? = null,
 ) {
-    fun toSChapter(
-        slug: String,
-        mangaId: String,
-    ) = SChapter.create().apply {
+    fun toSChapter(slug: String, mangaId: String) = SChapter.create().apply {
         name = "Capítulo $number"
         date_upload = timestamp
-        url = "/$slug/$number"
+        val ref = ChapterReferenceDto(mangaId, id, pageCount)
+        url = "/$slug/$number#${ref.toJsonString()}"
         memo = buildJsonObject {
             put("mangaId", JsonPrimitive(mangaId))
             put("chapterId", JsonPrimitive(id))
+            if (pageCount != null) {
+                put("pageCount", JsonPrimitive(pageCount))
+            }
         }
     }
 }

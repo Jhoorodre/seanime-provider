@@ -6,13 +6,13 @@ plugins {
 
 keiyoushi {
     name = "Manga Online"
-    versionCode = 61
+    versionCode = 63
     contentWarning = ContentWarning.MIXED
-    libVersion = "1.4"
+    libVersion = "1.6"
 
     source {
-        id = 1057607826304767869L
         lang = "pt-BR"
         baseUrl = "https://mangaonline.love"
+        versionId = 2
     }
 }
