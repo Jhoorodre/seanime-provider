@@ -98,6 +98,16 @@ class Provider {
         return res;
     }
 
+    // The API sends alternativeTitles as a JSON string, e.g. '[{"lang":"other","title":"Upando Sozinho"}]'.
+    private parseAlternativeTitles(raw: any): string[] {
+        try {
+            const list = typeof raw === "string" ? JSON.parse(raw) : raw;
+            return Array.isArray(list) ? list.map((t: any) => t?.title).filter((t: any) => typeof t === "string" && t.trim() !== "") : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
     async search(opts: QueryOptions): Promise<SearchResult[]> {
         let url = `${this.apiUrl}/mangas?page=1&limit=30&includeNsfw=true`;
         if (opts.query && opts.query.trim() !== "") {
@@ -119,7 +129,7 @@ class Provider {
         return items.map((manga: any) => ({
             id: manga.slug,
             title: manga.title,
-            synonyms: [],
+            synonyms: this.parseAlternativeTitles(manga.alternativeTitles),
             year: 0,
             image: manga.coverImage || ""
         }));
