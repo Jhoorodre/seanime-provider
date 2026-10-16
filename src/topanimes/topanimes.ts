@@ -86,7 +86,8 @@ class Provider {
             }
         });
         
-        return episodes.sort((a, b) => b.number - a.number);
+        // Seanime's EpisodeDetails.number is an int: one x.5 episode makes the whole list fail to unmarshal, so drop decimals (per doc)
+        return episodes.filter((e) => Number.isInteger(e.number)).sort((a, b) => b.number - a.number);
     }
 
     async findEpisodeServer(episode: EpisodeDetails, _server: string): Promise<EpisodeServer> {
