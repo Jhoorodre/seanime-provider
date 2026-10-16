@@ -92,7 +92,8 @@ class Provider {
 
         // Seanime expects episodes in ascending order — sort explicitly rather
         // than assuming DOM order (which was actually already descending).
-        return results.sort((a, b) => a.number - b.number)
+        // Seanime's EpisodeDetails.number is an int: one x.5 episode makes the whole list fail to unmarshal, so drop decimals (per doc)
+        return results.filter((e) => Number.isInteger(e.number)).sort((a, b) => a.number - b.number)
     }
 
     async findEpisodeServer(episode: EpisodeDetails | any, _server: string): Promise<EpisodeServer> {
@@ -211,7 +212,7 @@ class Provider {
                 return await fetch(url, init)
             } catch (e) {
                 if (attempt === retries) throw e
-                await new Promise(resolve => setTimeout(resolve, 1500))
+                await $sleep(1500)
             }
         }
         throw new Error("unreachable")
