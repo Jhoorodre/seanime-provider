@@ -26,6 +26,8 @@ This document outlines the planned extensions and providers to be implemented, a
 
 - [x] **Animes Digital** ([`src/animesdigital`](./src/animesdigital))
 
+- [x] **AnimesFHD** ([`src/animesfhd`](./src/animesfhd))
+
 - [x] **Anime Yabu** ([`src/animeyabu`](./src/animeyabu))
 
 - [x] **AnimesOnlineCC** ([`src/animesonlinecc`](./src/animesonlinecc))
