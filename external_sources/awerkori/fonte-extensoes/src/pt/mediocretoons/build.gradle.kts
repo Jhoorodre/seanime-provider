@@ -6,7 +6,7 @@ plugins {
 
 keiyoushi {
     name = "Mediocre Toons"
-    versionCode = 1
+    versionCode = 4
     contentWarning = ContentWarning.MIXED
     libVersion = "1.6"
 

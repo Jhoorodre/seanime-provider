@@ -6,7 +6,7 @@ plugins {
 
 keiyoushi {
     name = "Komga"
-    versionCode = 73
+    versionCode = 77
     contentWarning = ContentWarning.SAFE
     libVersion = "1.6"
 

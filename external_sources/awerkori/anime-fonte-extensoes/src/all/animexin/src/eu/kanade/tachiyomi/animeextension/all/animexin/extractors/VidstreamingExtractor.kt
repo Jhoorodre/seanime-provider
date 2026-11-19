@@ -5,7 +5,6 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -15,7 +14,6 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
-import java.lang.Exception
 import java.util.Locale
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -77,7 +75,7 @@ class VidstreamingExtractor(private val client: OkHttpClient) {
                         if (!videoUrl.startsWith("http")) {
                             videoUrl = fileURL.substringBeforeLast("/") + "/$videoUrl"
                         }
-                        videoList.add(Video(videoUrl, prefix + quality + qualitySuffix, videoUrl))
+                        videoList.add(Video(videoUrl = videoUrl, videoTitle = prefix + quality + qualitySuffix))
                     }
             } else {
                 array.forEach {
@@ -88,14 +86,13 @@ class VidstreamingExtractor(private val client: OkHttpClient) {
                     if (label == "auto") {
                         autoList.add(
                             Video(
-                                fileURL,
-                                label + qualitySuffix,
-                                fileURL,
+                                videoUrl = fileURL,
+                                videoTitle = label + qualitySuffix,
                                 headers = videoHeaders,
                             ),
                         )
                     } else {
-                        videoList.add(Video(fileURL, label + qualitySuffix, fileURL, headers = videoHeaders))
+                        videoList.add(Video(videoUrl = fileURL, videoTitle = label + qualitySuffix, headers = videoHeaders))
                     }
                 }
             }

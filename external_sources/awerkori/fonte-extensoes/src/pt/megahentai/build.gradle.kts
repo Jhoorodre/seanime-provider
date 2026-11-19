@@ -5,13 +5,18 @@ plugins {
 }
 
 keiyoushi {
-    source {
-        name = "MegaHentai"
-        lang = "pt-BR"
-        baseUrl = "https://megahentai.biz"
-    }
     name = "MegaHentai"
     versionCode = 1
     contentWarning = ContentWarning.NSFW
-    libVersion = "1.4"
+    libVersion = "1.6"
+
+    source {
+        lang = "pt-BR"
+        baseUrl = "https://megahentai.biz"
+    }
+
+    deeplink {
+        path("/ler-online/..*")
+        path("/ler/..*")
+    }
 }

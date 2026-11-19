@@ -6,13 +6,13 @@ plugins {
 
 keiyoushi {
     name = "Fleur Blanche"
-    versionCode = 6
+    versionCode = 8
     contentWarning = ContentWarning.NSFW // or MIXED, please confirm
     libVersion = "1.6"
     theme = "madara"
 
     source {
         lang = "pt-BR"
-        baseUrl = "https://fbsquadx.com"
+        baseUrl = "https://squadxfbs.com"
     }
 }
