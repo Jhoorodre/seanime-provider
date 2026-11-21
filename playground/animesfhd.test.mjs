@@ -1,4 +1,5 @@
-// Node >= 22.18: node --test --test-isolation=none playground/animesfhd.test.mjs
+// Node >= 22.18: node --test --experimental-test-isolation=none playground/animesfhd.test.mjs
+// Node >= 24:    node --test --test-isolation=none playground/animesfhd.test.mjs
 import assert from "node:assert/strict"
 import { readFileSync, existsSync } from "node:fs"
 import { stripTypeScriptTypes } from "node:module"
@@ -11,7 +12,7 @@ const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/animesfhd/${
 const clone = value => JSON.parse(JSON.stringify(value))
 const opts = (query = "frieren", dub = false) => ({ query, dub, media: { id: 154587, synonyms: ["OUTRO SINONIMO"], isAdult: false } })
 
-function harness(routes) {
+function harness(routes, { plainHeaders = false } = {}) {
     assert.ok(existsSync(sourceFile), "Provider AnimesFHD deve existir")
     const calls = [], sleeps = [], errors = []
     const fetch = async (url, init = {}) => {
@@ -24,8 +25,9 @@ function harness(routes) {
         const route = typeof routes[key] === "function" ? routes[key](init) : routes[key]
         if (route instanceof Error) throw route
         const status = route.status || 200
+        const headers = route.headers || {}
         return { ok: status >= 200 && status < 300, status, url: route.url || url,
-            headers: { get: name => route.headers?.[name.toLowerCase()] || null },
+            headers: plainHeaders ? { ...headers } : { get: name => headers[name.toLowerCase()] || null },
             json: async () => clone(route.body ?? route) }
     }
     const code = stripTypeScriptTypes(readFileSync(sourceFile, "utf8"))
@@ -175,6 +177,20 @@ test("destino de redirecionamento sem extensão usa HEAD apenas no CDN", async (
     assert.equal(result.videoSources[0].type, "m3u8")
     assert.equal(calls[1].method, "GET")
     assert.equal(calls[2].method, "HEAD")
+})
+
+test("headers de objeto plano (goja) resolvem 429 e redirect", async () => {
+    let count = 0
+    const data = fixture("episodio-22882")
+    data.sources = [{ id: 1, native_video: true, kind: "file", url: "/api/v/s5?source=1" }]
+    const { provider } = harness({
+        "/api/episodes/22882": () => ++count === 1 ? { status: 429, headers: { "Retry-After": "1" } } : data,
+        "/api/v/s5?source=1": { status: 307, headers: { Location: "https://cdn.example/video.mp4" } },
+    }, { plainHeaders: true })
+    const result = clone(await provider.findEpisodeServer({ id: "22882" }, "default"))
+    assert.equal(count, 2)
+    assert.equal(result.videoSources[0].url, "https://cdn.example/video.mp4")
+    assert.equal(result.videoSources[0].type, "mp4")
 })
 
 test("lista real de populares pode ser mapeada quando não há versions", async () => {

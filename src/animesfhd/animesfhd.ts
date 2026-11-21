@@ -155,7 +155,7 @@ class Provider {
                     // A API aceita GET, não HEAD. Não seguir o 307 com GET:
                     // o fetch do Seanime pode carregar o vídeo inteiro na memória.
                     const video = await this.request(url, "GET", "manual")
-                    const location = video.headers.get("location")
+                    const location = this.header(video, "location")
                     if (video.status >= 300 && video.status < 400) {
                         if (!location) throw new Error("AnimesFHD: redirecionamento sem destino")
                         url = this.absolute(location)
@@ -163,10 +163,10 @@ class Provider {
                         if (type === "unknown") {
                             const target = await this.request(url, "HEAD")
                             url = this.absolute(target.url || url)
-                            type = this.videoType(url, target.headers.get("content-type") || "")
+                            type = this.videoType(url, this.header(target, "content-type"))
                         }
                     } else {
-                        type = this.videoType(url, video.headers.get("content-type") || "")
+                        type = this.videoType(url, this.header(video, "content-type"))
                     }
                 }
                 const subtitle = source.subtitle_url || data.episode?.subtitle_url
@@ -207,7 +207,7 @@ class Provider {
             this.lastRequest = Date.now()
             const res = await fetch(url, { method, headers: this.headers, redirect })
             if (res.status === 429 && attempt === 0) {
-                const retryAfter = Number(res.headers.get("retry-after"))
+                const retryAfter = Number(this.header(res, "retry-after"))
                 await $sleep(Math.min(30000, Math.max(1000, (retryAfter || 1) * 1000)))
                 continue
             }
@@ -217,6 +217,15 @@ class Provider {
             return res
         }
         throw new Error("AnimesFHD: limite de requisições atingido")
+    }
+
+    private header(res: any, name: string): string {
+        if (res && res.headers) {
+            if (typeof res.headers.get === "function") return res.headers.get(name) || ""
+            const lower = name.toLowerCase()
+            for (const key in res.headers) if (key.toLowerCase() === lower) return res.headers[key]
+        }
+        return ""
     }
 
     private absolute(url: string): string {
